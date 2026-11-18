@@ -11,7 +11,7 @@ test:
 
 # 100% of demo and client lines, bins included (they run as subprocesses in tests/bins.rs).
 coverage:
-	cargo llvm-cov --workspace --fail-under-lines 100
+	cargo llvm-cov --workspace --show-missing-lines --fail-under-lines 100
 
 lint: lint-rust lint-shell
 
