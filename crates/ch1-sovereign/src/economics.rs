@@ -136,7 +136,7 @@ mod tests {
         Inputs {
             hardware_usd: 360.0,
             lifetime_months: 36.0,
-            watts: 100.0,
+            watts: 360.0,
             kwh_usd: 0.1,
             hosted_usd_per_mtok: 2.0,
             tokens_per_second: 10.0,
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn energy_matches_hand_arithmetic() {
-        // 1e6 tokens at 10 tok/s = 1e5 s at 100 W = 10 kWh = 1.0 USD at 0.10/kWh
+        // 1e6 tokens at 10 tok/s = 1e5 s at 360 W = 10 kWh = 1.0 USD at 0.10/kWh
         assert!((inputs().energy_usd_per_mtok() - 1.0).abs() < 1e-9);
     }
 
