@@ -52,7 +52,7 @@ fn a_bad_runtime_name_stops_the_demo() {
         &[("RLL_RUNTIME", "vllm")],
     );
     assert!(!ok);
-    assert!(err.contains("unknown runtime"));
+    assert!(err.contains("bad RLL_* environment"));
 }
 
 #[test]
