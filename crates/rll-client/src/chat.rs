@@ -108,7 +108,7 @@ impl Client {
     }
 
     pub fn chat(&self, req: &ChatRequest) -> Result<Completion, Error> {
-        let body = serde_json::to_string(req).map_err(|e| Error::Json(e.to_string()))?;
+        let body = serde_json::to_string(req).expect("ChatRequest always serializes");
         let reply = self.transport.post_json(&self.endpoint(), &body)?;
         let parsed: ChatResponse =
             serde_json::from_str(&reply.body).map_err(|e| Error::Json(e.to_string()))?;
