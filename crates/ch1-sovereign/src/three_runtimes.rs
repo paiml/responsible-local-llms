@@ -74,8 +74,6 @@ mod tests {
     fn live_run_without_a_server_is_an_error() {
         // Nothing listens on the default ports in CI; the error must surface, not panic.
         let mut buf = Vec::new();
-        if run(true, &mut buf).is_ok() {
-            // A developer machine with all three runtimes up: nothing more to assert.
-        }
+        let _ = run(true, &mut buf);
     }
 }

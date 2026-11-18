@@ -39,20 +39,22 @@ pub fn parse_response(raw: &str) -> Result<&str, Error> {
     Ok(body)
 }
 
+fn io(e: std::io::Error) -> Error {
+    Error::Io(e.to_string())
+}
+
 impl Transport for HttpTransport {
     fn post_json(&self, url: &str, body: &str) -> Result<Reply, Error> {
         let (host, path) = parse_url(url)?;
         let start = Instant::now();
-        let mut s = TcpStream::connect(host).map_err(|e| Error::Io(e.to_string()))?;
+        let mut s = TcpStream::connect(host).map_err(io)?;
         let req = format!(
             "POST {path} HTTP/1.0\r\nHost: {host}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
             body.len()
         );
-        s.write_all(req.as_bytes())
-            .map_err(|e| Error::Io(e.to_string()))?;
+        s.write_all(req.as_bytes()).map_err(io)?;
         let mut raw = String::new();
-        s.read_to_string(&mut raw)
-            .map_err(|e| Error::Io(e.to_string()))?;
+        s.read_to_string(&mut raw).map_err(io)?;
         let body = parse_response(&raw)?.to_string();
         Ok(Reply {
             body,

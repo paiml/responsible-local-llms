@@ -108,11 +108,15 @@ mod tests {
 
     #[test]
     fn config_reads_overrides() {
-        let c = Config::from_lookup(|k| match k {
-            "RLL_RUNTIME" => Some("ollama".into()),
-            "RLL_BASE_URL" => Some("http://h:1".into()),
-            "RLL_MODEL" => Some("m".into()),
-            _ => None,
+        let env = [
+            ("RLL_RUNTIME", "ollama"),
+            ("RLL_BASE_URL", "http://h:1"),
+            ("RLL_MODEL", "m"),
+        ];
+        let c = Config::from_lookup(|k| {
+            env.iter()
+                .find(|(n, _)| *n == k)
+                .map(|(_, v)| v.to_string())
         })
         .unwrap();
         assert_eq!(c.runtime, Runtime::Ollama);
