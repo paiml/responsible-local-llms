@@ -32,6 +32,7 @@ endif
 # `pv lint` prints PASS even when one gate fails, so each ontology gate's verdict is read on its own.
 PV_GATES := sigma shapes
 pv:
+	scripts/check-evals-table.sh
 	scripts/demo-bins-jsonl.sh --check
 	pv lint contracts --binding contracts/binding.yaml --crate-dir crates/ch1-sovereign
 	pv lint contracts --binding contracts/ch3-guard/binding.yaml --crate-dir crates/ch3-guard

@@ -14,7 +14,6 @@ One Rust workspace, one test suite, and three local runtimes serving the same mo
 | `crates/ch4-agents` | Chapter 4 demos (videos 4.1 to 4.5): typed tool agent, local MCP server over loopback, agency limits, human approval with an audit log, tool-abuse evals. Offline, the model is a RECORDED, illustrative answer set; live legs check invariants only. |
 | `crates/ch3-guard` | Chapter 3 demos 3.3 and 3.4: PII and secret redaction (`lesson33_pii_redaction`) and input/output guardrails (`lesson34_guardrails`). Pure text, no runtime; run with `cargo run -p ch3-guard --bin lesson33_pii_redaction`. |
 | `scripts/` | `serve-apr.sh`, `serve-ollama.sh`, `serve-llamacpp.sh`, and the whisper.cpp pipeline for lesson 5. |
-| `evals/` | Test sets as `*.jsonl`: a planned set for each of the six risks of lesson 1.7, and `quantization-quality` for lesson 1.3 (see `evals/README.md`). |
 | `evals/` | Test sets as `*.jsonl` (filled in from chapter 2). `pii.jsonl` and `guardrails.jsonl` (chapter 3) hold hand-written synthetic strings, each labelled `"source":"illustrative"`: examples of the shapes, not measurements of any model. |
 
 ## Run it offline
