@@ -14,31 +14,19 @@ permissions:
   contents: read
 
 jobs:
+  # One job, all three runtimes up at once: lesson 1.2 asks apr, Ollama and llama.cpp in one
+  # run, so a job with fewer than three cannot run it. The suite refuses a partial run (red).
+  # llama.cpp and Ollama run from pinned images; `apr` must already be on the runner's PATH.
+  # This job only checks; it never installs anything.
   live:
     name: live
     runs-on: [self-hosted, Linux, ARM64, gx10, docker]
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: check docker (checks only)
-        run: docker info
-      - name: test model cache
-        uses: actions/cache@v4
-        with:
-          path: .cache/models
-          key: rll-model-qwen3-0.6b-q4_k_m-ac2d97712095a558
-      - name: live suite (llama.cpp, Ollama)
-        run: make live RUNTIMES="llamacpp ollama"
-
-  # The apr leg. `apr` must already be on the runner's PATH; this job never installs it.
-  live-apr:
-    name: live-apr
-    runs-on: [self-hosted, Linux, clean-room]
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - name: check apr (checks only)
+      - name: check docker and apr (checks only)
         run: |
+          docker info >/dev/null
           command -v apr >/dev/null 2>&1 || { echo "apr is not on PATH on this runner; this job never installs it" >&2; exit 1; }
           apr --version
       - name: test model cache
@@ -46,5 +34,5 @@ jobs:
         with:
           path: .cache/models
           key: rll-model-qwen3-0.6b-q4_k_m-ac2d97712095a558
-      - name: live suite (apr)
-        run: make live RUNTIMES="apr"
+      - name: live suite (apr, llama.cpp, Ollama, lesson 1.2 on all three)
+        run: make live RUNTIMES="apr llamacpp ollama"

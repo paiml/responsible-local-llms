@@ -2,13 +2,15 @@
 # Live suite: start real local runtimes, then run the same demo-bin tests against each
 # one through RLL_LIVE=1 / RLL_RUNTIME / RLL_BASE_URL / RLL_MODEL.
 #
-# Usage: scripts/live-suite.sh [runtime ...]     (default: $RLL_LIVE_RUNTIMES, else "llamacpp ollama")
+# Usage: scripts/live-suite.sh [runtime ...]     (default: $RLL_LIVE_RUNTIMES, else "apr llamacpp ollama")
 #   llamacpp, ollama  run from pinned container images (needs docker; nothing is installed on the host)
 #   apr               runs scripts/serve-apr.sh (needs `apr` on PATH)
 # Env: RLL_QUANT (set to q4_k_m here: the cached model) labels the lesson3_quality score.
 #      RLL_MODEL_DIR  where the test model is cached (default .cache/models)
 #
 # A runtime that cannot start fails the run with a message naming what is missing.
+# Lesson 1.2 asks all three runtimes in one run, so the suite always needs all three up at
+# once. A run without all three is a FAILURE, never a skipped lesson that still prints PASS.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,7 +23,11 @@ MODEL_NAME=qwen3-0.6b
 die() { echo "live-suite: FAIL: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is not on PATH ($2); this job never installs it"; }
 
-read -r -a runtimes <<< "${*:-${RLL_LIVE_RUNTIMES:-llamacpp ollama}}"
+read -r -a runtimes <<< "${*:-${RLL_LIVE_RUNTIMES:-apr llamacpp ollama}}"
+# Refuse a partial run before anything starts: no skipped lesson contract, no third state.
+for want in apr llamacpp ollama; do
+  [[ " ${runtimes[*]} " == *" $want "* ]] || die "lesson 1.2 needs apr, llamacpp and ollama in one run; $want is missing from (${runtimes[*]})"
+done
 need curl "used to fetch the test model and probe health"
 need sha256sum "used to verify the test model"
 
@@ -100,12 +106,8 @@ for rt in "${runtimes[@]}"; do
 done
 # Lesson 1.2 asks all three runtimes in one run, so it needs all three up at once. The
 # servers started above stay up until this script exits.
-if [ -n "${urls[apr]:-}" ] && [ -n "${urls[ollama]:-}" ] && [ -n "${urls[llamacpp]:-}" ]; then
-  RLL_LIVE=1 RLL_MODEL=$MODEL_NAME RLL_BASE_URL_APR=${urls[apr]} RLL_BASE_URL_OLLAMA=${urls[ollama]} \
-    RLL_BASE_URL_LLAMACPP=${urls[llamacpp]} \
-    cargo test -q -p ch1-sovereign --test three_runtimes_live -- --nocapture --test-threads 1
-  echo "live-suite: lesson 1.2 PASS (all three runtimes at once)"
-else
-  echo "live-suite: lesson 1.2 skipped (needs apr, ollama and llamacpp in one run)"
-fi
+RLL_LIVE=1 RLL_MODEL=$MODEL_NAME RLL_BASE_URL_APR=${urls[apr]} RLL_BASE_URL_OLLAMA=${urls[ollama]} \
+  RLL_BASE_URL_LLAMACPP=${urls[llamacpp]} \
+  cargo test -q -p ch1-sovereign --test three_runtimes_live -- --nocapture --test-threads 1
+echo "live-suite: lesson 1.2 PASS (all three runtimes at once)"
 echo "live-suite: PASS (${runtimes[*]})"
