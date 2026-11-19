@@ -7,7 +7,8 @@ table=$(awk '/^## The six risks/{t=1;next} /^## /{t=0} t&&/^\|/' evals/README.md
 [ -n "$table" ] || { echo "evals/README.md: risk table not found" >&2; exit 1; }
 while IFS= read -r row; do
   cell=$(printf '%s' "$row" | awk -F'|' '{print $3}')
-  for set in $(printf '%s' "$cell" | grep -o '`[a-z0-9-]*`' | tr -d '`'); do
+  # shellcheck disable=SC2016
+  for set in $(printf '%s' "$cell" | grep -o '`[^`]*`' | tr -d '`'); do
     [ -f "evals/$set.jsonl" ] || { echo "evals/README.md names set '$set' but evals/$set.jsonl does not exist" >&2; bad=1; }
   done
 done <<<"$table"

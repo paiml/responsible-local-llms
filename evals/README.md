@@ -17,7 +17,7 @@ answer must have (not an exact string). A case holds `id`, `prompt`, `must_conta
 
 Leaks have no set of their own: `pii.jsonl` holds the personal-data shapes a detector must catch, `guardrails.jsonl` the secrets a rule must block, and `red-team.jsonl` the `leak` and `pii` attacks. Compliance has no `.jsonl` set either. Chapter 5 checks it in code against fixtures: the licence check (`lesson1_licence_check`) and the AI Act documents check (`lesson2_ai_act_docs`) in `crates/ch5-governance`. The repo has no `docs/output-marking.md` on purpose: the sample `governance.json` declares it so the generator shows a MISSING row (lesson 5.2).
 
-`scripts/check-evals-table.sh` (in `make pv`) fails if a set named in this table has no file, or if a README says a set is planned.
+`scripts/check-evals-table.sh` (in `make pv`) fails if a set named in this table has no file, or if a README says a set is not yet written.
 
 ## Written now
 
