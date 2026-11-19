@@ -1,0 +1,67 @@
+version: 1.0.0
+target_crate: ch1-sovereign
+# Maps each contract equation to the Rust function that implements it.
+bindings:
+- contract: three-runtimes-agree-v1.yaml
+  equation: runtimes_agree
+  module_path: ch1_sovereign::three_runtimes::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_three_runtimes bin; falsified by three_runtimes::tests.
+- contract: quantize-size-speed-v1.yaml
+  equation: size_bytes
+  module_path: ch1_sovereign::quantize
+  function: size_bytes
+  signature: 'fn size_bytes(params: f64, bits_per_weight: f64) -> f64'
+  status: implemented
+  notes: Falsified by quantize::tests::size_is_linear_in_bits.
+- contract: quantize-size-speed-v1.yaml
+  equation: measured_speed
+  module_path: ch1_sovereign::quantize::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_quantize bin offline and in the live CI job.
+- contract: local-economics-breakeven-v1.yaml
+  equation: breakeven
+  module_path: ch1_sovereign::economics::Inputs
+  function: breakeven_mtok
+  signature: 'fn breakeven_mtok(&self) -> Option<f64>'
+  status: implemented
+  notes: Asserted through Summary::contract_holds by the lesson4_economics bin.
+- contract: local-economics-breakeven-v1.yaml
+  equation: idle_waste
+  module_path: ch1_sovereign::economics::Inputs
+  function: idle_waste_usd
+  signature: 'fn idle_waste_usd(&self) -> f64'
+  status: implemented
+  notes: Falsified by economics::tests::idle_waste_is_zero_when_always_busy_and_grows_when_idle.
+- contract: local-economics-breakeven-v1.yaml
+  equation: breakeven
+  module_path: ch1_sovereign::economics::Inputs
+  function: fixed_monthly_usd
+  signature: 'fn fixed_monthly_usd(&self) -> f64'
+  status: implemented
+  notes: F in the break-even formula; falsified by economics::tests::fixed_cost_is_amortized.
+- contract: local-economics-breakeven-v1.yaml
+  equation: breakeven
+  module_path: ch1_sovereign::economics::Inputs
+  function: energy_usd_per_mtok
+  signature: 'fn energy_usd_per_mtok(&self) -> f64'
+  status: implemented
+  notes: e in the break-even formula; falsified by economics::tests::energy_matches_hand_arithmetic.
+- contract: local-economics-breakeven-v1.yaml
+  equation: breakeven
+  module_path: ch1_sovereign::economics::Inputs
+  function: local_cost
+  signature: 'fn local_cost(&self, mtok_per_month: f64) -> f64'
+  status: implemented
+  notes: local(m) = F + e·m.
+- contract: local-economics-breakeven-v1.yaml
+  equation: breakeven
+  module_path: ch1_sovereign::economics::Inputs
+  function: hosted_cost
+  signature: 'fn hosted_cost(&self, mtok_per_month: f64) -> f64'
+  status: implemented
+  notes: hosted(m) = h·m.
