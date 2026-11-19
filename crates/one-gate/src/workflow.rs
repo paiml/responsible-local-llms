@@ -10,13 +10,27 @@ use std::path::Path;
 const MAX_DEPTH: usize = 4;
 const MAX_MATRIX: usize = 256;
 
+/// Keys an aggregate job and its single step may carry. Anything else is not understood.
+const AGG_JOB_KEYS: &[&str] = &["name", "runs-on", "needs", "if", "steps", "timeout-minutes"];
+const AGG_STEP_KEYS: &[&str] = &["name", "if", "run"];
+
+fn only_keys(m: &Mapping, allowed: &[&str]) -> bool {
+    m.keys()
+        .all(|k| k.as_str().is_some_and(|k| allowed.contains(&k)))
+}
+
 pub struct Step {
+    /// Every key of the step is one the aggregate shape names (allow-list, not deny-list).
+    pub plain: bool,
     pub cond: Option<Option<String>>,
     pub run: Option<String>,
 }
 
 pub struct Job {
     pub id: String,
+    /// Every job key, and the workflow, is one the aggregate shape names: no `shell`, `defaults`,
+    /// `env`, `container`, `strategy`, `uses` or anything else that could change what the step does.
+    pub plain: bool,
     /// The check names this job reports: matrix expanded, `caller / inner` for a callee.
     pub names: Vec<String>,
     pub needs: Vec<String>,
@@ -79,6 +93,15 @@ fn str_list(v: &Value) -> Option<Vec<String>> {
 /// GitHub branch glob to an anchored regex: `**` any, `*` no slash, `?` and `+` repeat the
 /// previous atom, `[..]` a class.
 fn glob_matches(pat: &str, text: &str) -> Result<bool, String> {
+    // Allow-list of what a pattern may contain; GitHub's escape and ref-prefix handling is not
+    // measured, so a backslash, a `refs/` prefix or any other character is refused, not read literally.
+    if pat.starts_with("refs/")
+        || !pat
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_./*?+[]".contains(c))
+    {
+        return Err(format!("branch pattern '{pat}' is not understood"));
+    }
     let mut re = String::from("^");
     let mut it = pat.chars().peekable();
     while let Some(c) = it.next() {
@@ -369,6 +392,7 @@ fn parse_steps(m: &Mapping, id: &str) -> Result<(Vec<Step>, bool), String> {
             .ok_or_else(|| format!("job '{id}' has a step that is not a mapping"))?;
         third |= continue_on_error(sm);
         steps.push(Step {
+            plain: only_keys(sm, AGG_STEP_KEYS),
             cond: sm.get("if").map(|c| c.as_str().map(str::to_owned)),
             run: sm.get("run").and_then(Value::as_str).map(str::to_owned),
         });
@@ -376,7 +400,7 @@ fn parse_steps(m: &Mapping, id: &str) -> Result<(Vec<Step>, bool), String> {
     Ok((steps, third))
 }
 
-fn parse_job(id: &str, v: &Value, cx: &Cx) -> Result<Job, String> {
+fn parse_job(id: &str, v: &Value, cx: &Cx, top_defaults: bool) -> Result<Job, String> {
     let m = v
         .as_mapping()
         .ok_or_else(|| format!("job '{id}' is not a mapping"))?;
@@ -402,6 +426,7 @@ fn parse_job(id: &str, v: &Value, cx: &Cx) -> Result<Job, String> {
     }
     Ok(Job {
         id: id.to_owned(),
+        plain: only_keys(m, AGG_JOB_KEYS) && !top_defaults,
         names,
         needs,
         cond: m.get("if").map(|c| c.as_str().map(str::to_owned)),
@@ -420,7 +445,7 @@ fn parse_jobs(top: &Mapping, cx: &Cx) -> Result<Vec<Job>, String> {
     let mut out = Vec::new();
     for (k, v) in jobs {
         let id = k.as_str().ok_or("a job id is not a string")?;
-        out.push(parse_job(id, v, cx)?);
+        out.push(parse_job(id, v, cx, top.contains_key("defaults"))?);
     }
     Ok(out)
 }

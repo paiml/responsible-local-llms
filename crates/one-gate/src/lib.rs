@@ -129,6 +129,9 @@ fn aggregate_ok(j: &Job) -> bool {
     let [step] = &j.steps[..] else {
         return false;
     };
+    if !j.plain || !step.plain {
+        return false;
+    }
     let Some(Some(cond)) = &step.cond else {
         return false;
     };
@@ -149,14 +152,23 @@ fn aggregate_ok(j: &Job) -> bool {
 }
 
 type At = (usize, usize);
-type Producers<'a> = BTreeMap<&'a str, At>;
+/// Check names compared as GitHub might: trimmed, case-folded, inner whitespace collapsed. How GitHub
+/// really matches is not measured, so any two names that fold together collide.
+fn fold(n: &str) -> String {
+    n.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+type Producers<'a> = BTreeMap<String, (At, &'a str)>;
 
 fn index_producers<'a>(wfs: &'a [Workflow], out: &mut Vec<String>) -> Producers<'a> {
     let mut producers: Producers = BTreeMap::new();
     for (wi, w) in wfs.iter().enumerate().filter(|(_, w)| w.standalone) {
         for (ji, j) in w.jobs.iter().enumerate() {
             for n in &j.names {
-                if producers.insert(n, (wi, ji)).is_some() {
+                if producers.insert(fold(n), ((wi, ji), n)).is_some() {
                     out.push(format!(
                         "{}: check name '{n}' is produced more than once; two checks would share one context",
                         w.file
@@ -181,8 +193,8 @@ fn required_jobs(
 ) -> BTreeSet<At> {
     let mut req_jobs = BTreeSet::new();
     for r in required {
-        match producers.get(r.as_str()) {
-            Some(&(wi, ji)) if wfs[wi].pr_side => {
+        match producers.get(&fold(r)) {
+            Some(&((wi, ji), n)) if wfs[wi].pr_side && n == r => {
                 req_jobs.insert((wi, ji));
             }
             _ => out.push(format!(

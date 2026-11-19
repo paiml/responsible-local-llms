@@ -862,3 +862,106 @@ fn remote_callee_only_when_pinned_by_exact_ref() {
     );
     has(&v, "remote and not pinned");
 }
+
+// ---- round 4: what class of input was still accepted without being understood ---------------
+
+/// The aggregate may carry only the keys of its committed shape. Anything else (a shell that
+/// makes `exit 1` a no-op, defaults at any level, env, a container) is not understood: RED.
+#[test]
+fn aggregate_with_any_unlisted_key_is_red() {
+    let step = "      - if: needs.helper.result != 'success' || needs.lint.result != 'success'\n        run: exit 1\n";
+    let with_step_key = |k: &str| AGG.replace(step, &format!("{step}        {k}\n"));
+    let with_job_key = |k: &str| {
+        AGG.replace(
+            "    if: always()\n",
+            &format!("    if: always()\n    {k}\n"),
+        )
+    };
+    let mut bad = vec![
+        with_step_key("shell: 'true {0}'"),
+        with_step_key("env: {BASH_ENV: x}"),
+        with_step_key("working-directory: /"),
+        with_step_key("timeout-minutes: 1"),
+        with_job_key("defaults: {run: {shell: 'true {0}'}}"),
+        with_job_key("env: {A: b}"),
+        with_job_key("container: alpine"),
+        with_job_key("strategy: {fail-fast: false}"),
+        with_job_key("outputs: {a: b}"),
+        AGG.replace(
+            "jobs:\n",
+            "defaults:\n  run:\n    shell: 'true {0}'\njobs:\n",
+        ),
+        AGG.replace(
+            "jobs:\n",
+            "defaults:\n  run:\n    working-directory: x\njobs:\n",
+        ),
+    ];
+    bad.push(AGG.replace(step, &format!("      - uses: x/y@v1\n{step}")));
+    for y in bad {
+        let v = run(&[("ci.yml", &y)], "gate\n", ALLOW);
+        has(&v, "not the aggregate shape");
+    }
+    // The listed keys stay legitimate.
+    let ok = AGG
+        .replace(
+            "    if: always()\n",
+            "    if: always()\n    name: gate\n    timeout-minutes: 5\n",
+        )
+        .replace(
+            step,
+            &format!(
+                "      - name: fail\n{}",
+                step.replacen("      - if", "        if", 1)
+            ),
+        );
+    none(run(&[("ci.yml", &ok)], "gate\n", ALLOW));
+}
+
+/// A branch pattern is understood or refused: escapes, a `refs/` prefix and every character
+/// outside the glob alphabet are RED on both sides, never read literally.
+#[test]
+fn unknown_branch_pattern_syntax_is_red() {
+    for pat in [
+        "'ma\\in'",
+        "'refs/heads/main'",
+        "'{main,dev}'",
+        "'ma(in)'",
+        "'ma in'",
+        "'ma!in'",
+        "'${{ github.base_ref }}'",
+        "'mäin'",
+    ] {
+        has(&push_cfg(&format!("    branches: [{pat}]")), CLOSED);
+        has(&push_cfg(&format!("    branches-ignore: [{pat}]")), CLOSED);
+        has(
+            &push_cfg(&format!(
+                "    branches: ['**', '!{}']",
+                pat.trim_matches('\'')
+            )),
+            CLOSED,
+        );
+        has(&pr_cfg(&format!("    branches: [{pat}]")), CLOSED);
+    }
+}
+
+/// Check names collide when they fold together (trim, case, inner whitespace), and a required
+/// name must match its producer exactly.
+#[test]
+fn folded_check_names_collide() {
+    for n in ["'gate '", "' gate'", "Gate", "GATE", "'ga  te'"] {
+        let y = format!(
+            "on: pull_request\njobs:\n  shadow:\n    name: {n}\n    runs-on: x\n    steps:\n      - run: true\n"
+        );
+        let v = with_extra(&y);
+        if n == "'ga  te'" {
+            none(v);
+        } else {
+            has(&v, "is produced more than once");
+        }
+    }
+    let ci = GOOD.replace("name: gate", "name: Gate");
+    has(
+        &run(&[("ci.yml", &ci)], "gate\n", ALLOW),
+        "no job renders that check name",
+    );
+}
