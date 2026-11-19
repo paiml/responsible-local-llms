@@ -1,0 +1,10 @@
+{
+  "name": "support-bot (ILLUSTRATIVE sample repo, not a real product)",
+  "purpose": "Answers customer questions about an invoice from a local model.",
+  "uses": ["chatbot", "synthetic_text"],
+  "models": [{"name": "example-model-a", "license": "apache-2.0"}],
+  "evidence": {
+    "art50-1": "docs/ai-disclosure.md",
+    "art50-2": "docs/output-marking.md"
+  }
+}

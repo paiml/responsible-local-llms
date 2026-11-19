@@ -1,0 +1,8 @@
+{"text":"Explain in two sentences what a GGUF file is.","expect":"hosted"}
+{"text":"Write a haiku about the Rust borrow checker.","expect":"hosted"}
+{"text":"Summarise this public press release: the company opened an office in Madrid.","expect":"hosted"}
+{"text":"Draft a reply to jane.doe@example.com about the invoice.","expect":"local"}
+{"text":"Customer 000-12-3456 disputes the charge, please draft a note.","expect":"local"}
+{"text":"Refund to card 4111 1111 1111 1111 was declined, why?","expect":"local"}
+{"text":"Summarise the patient's diagnosis from the attached notes.","expect":"local"}
+{"text":"Here is our config: password: hunter2 and the service restarts nightly.","expect":"local"}
