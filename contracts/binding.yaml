@@ -65,6 +65,41 @@ bindings:
   signature: 'fn hosted_cost(&self, mtok_per_month: f64) -> f64'
   status: implemented
   notes: hosted(m) = h·m.
+- contract: eval-spec-v1.yaml
+  equation: case_check
+  module_path: rll_evals::check::Case
+  function: check
+  signature: 'fn check(&self, answer: &str) -> Vec<String>'
+  status: implemented
+  notes: Falsified by check::tests::a_case_reports_every_failed_property.
+- contract: eval-spec-v1.yaml
+  equation: schema_valid
+  module_path: rll_evals::schema
+  function: parse_jsonl
+  signature: 'fn parse_jsonl(text: &str) -> Result<Vec<Case>, SchemaError>'
+  status: implemented
+  notes: Falsified by the schema::tests refusal cases.
+- contract: eval-spec-v1.yaml
+  equation: spec_judges_meaning
+  module_path: ch2_evals::test_set_spec::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson1_test_set_spec bin; falsified by test_set_spec::tests.
+- contract: eval-determinism-v1.yaml
+  equation: pass_rate
+  module_path: rll_evals::runner
+  function: run
+  signature: 'fn run(cases: &[Case], responder: &dyn Responder, seeds: &[u32], temperature: f32) -> Result<Report, RunError>'
+  status: implemented
+  notes: Falsified by runner::tests::empty_inputs_are_refused.
+- contract: eval-determinism-v1.yaml
+  equation: repeatable
+  module_path: ch2_evals::flakiness::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson4_flakiness bin offline and in the live job.
 - contract: quantization-quality-v1.yaml
   equation: case_passes
   module_path: ch1_sovereign::quality::Case

@@ -1,0 +1,106 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 2.1: a test set is a spec. A case holds a prompt and the properties its answer must have; the checker judges meaning, not wording, and the schema refuses a set that tests nothing."
+  references:
+    - "crates/rll-evals/src/schema.rs"
+    - "crates/rll-evals/src/check.rs"
+    - "crates/ch2-evals/src/test_set_spec.rs"
+    - "crates/ch2-evals/src/bin/lesson1_test_set_spec.rs"
+  tags:
+    - evals
+    - schema
+    - properties
+
+equations:
+  case_check:
+    formula: "check(case, a) = [ p ∈ case.properties : ¬holds(p, a) ]; pass(case, a) ⇔ check(case, a) = []"
+    domain: "case: a validated Case, a: any answer string"
+    codomain: "the list of failed properties, empty exactly when the answer passes"
+    invariants:
+      - "a case passes iff every property holds"
+      - "a correct answer in different words passes; a wrong answer fails"
+    preconditions:
+      - "case.properties.len() >= 1"
+    postconditions:
+      - "check(case, a).is_empty() implies every property holds for a"
+  schema_valid:
+    formula: "parse(text) = Ok(cases) ⇒ |cases| ≥ 1 ∧ ids unique ∧ ∀ c ∈ cases: c.prompt ≠ \"\" ∧ |c.properties| ≥ 1"
+    domain: "text: a jsonl eval set"
+    codomain: "Ok(cases) or an error naming the line"
+    invariants:
+      - "an empty set, a duplicate id, an empty prompt and a case with no properties are refused"
+      - "an unknown field or property kind is refused"
+    preconditions:
+      - "text is UTF-8"
+    postconditions:
+      - "an Err names the 1-based line it failed on (0 for the whole set)"
+  spec_judges_meaning:
+    formula: "contract_holds(s) ⇔ |s.rows| = |Runtime::ALL| ∧ ∀ r ∈ s.rows: check(case, r.answer) = [] ∧ check(case, WRONG) ≠ []"
+    domain: "s: one answer per runtime for the lesson's case, plus the wrong answer's failures"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "every runtime was judged by the same properties"
+      - "the wrong answer is refused"
+    preconditions:
+      - "Runtime::ALL.len() == 3"
+    postconditions:
+      - "contract_holds(s) implies s.wrong_failures is not empty"
+
+proof_obligations:
+  - type: invariant
+    property: "A wrong answer fails the case"
+    formal: "check(case, WRONG) ≠ []"
+    applies_to: case_check
+  - type: invariant
+    property: "A set that tests nothing is refused"
+    formal: "|properties| = 0 ⇒ parse(text) = Err"
+    applies_to: schema_valid
+  - type: invariant
+    property: "No runtime is skipped"
+    formal: "contract_holds(s) ⇒ |s.rows| = 3"
+    applies_to: spec_judges_meaning
+
+falsification_tests:
+  - id: FALSIFY-E1-001
+    rule: "Wrong answer"
+    prediction: "Replacing a runtime answer with Lyon makes the case fail and contract_holds false"
+    test: "test_set_spec::tests::contract_fails_when_an_answer_breaks_a_property"
+    if_fails: "the properties no longer refuse a wrong answer"
+  - id: FALSIFY-E1-002
+    rule: "Missing runtime"
+    prediction: "Dropping one row makes contract_holds false"
+    test: "test_set_spec::tests::contract_fails_when_a_runtime_is_missing"
+    if_fails: "contract_holds no longer counts runtimes"
+  - id: FALSIFY-E1-003
+    rule: "Wrong answer accepted"
+    prediction: "Clearing the wrong answer's failures makes contract_holds false"
+    test: "test_set_spec::tests::contract_fails_when_the_wrong_answer_is_accepted"
+    if_fails: "contract_holds no longer requires the wrong answer to fail"
+  - id: FALSIFY-E1-004
+    rule: "Invalid sets"
+    prediction: "Empty set, duplicate id, empty prompt, no properties and bad property values are each an Err"
+    test: "schema::tests (an_empty_set_is_refused, duplicate_ids_are_refused, bad_ids_prompts_and_empty_property_lists_are_refused, bad_property_values_are_refused)"
+    if_fails: "the schema accepts a set that tests nothing"
+  - id: FALSIFY-E1-005
+    rule: "Every failed property is reported"
+    prediction: "An answer that breaks three properties reports three failures"
+    test: "check::tests::a_case_reports_every_failed_property"
+    if_fails: "Case::check stops at the first failure or skips one"
+  - id: FALSIFY-E1-006
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson1_test_set_spec prints 'contract: a test set is a spec OK' and exits 0"
+    test: "tests/bins.rs::lesson1_prints_its_contract"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-E1-001
+  name: "A test set is a spec"
+  description: "Lesson 2.1 demo contract"
+  checks:
+    - "case_check"
+    - "schema_valid"
+    - "spec_judges_meaning"
+  pass_criteria: "All falsification tests pass offline; the bin prints its contract line"
