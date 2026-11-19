@@ -74,3 +74,36 @@ fn lesson2_live_mode_without_a_server_fails_loudly() {
     assert!(!ok);
     assert!(err.contains("demo run failed"));
 }
+
+#[test]
+fn lesson3_quality_prints_its_contract() {
+    let (ok, out, _) = run(env!("CARGO_BIN_EXE_lesson3_quality"), &[]);
+    assert!(ok);
+    assert!(out.contains("q4_k_m  3/8 cases pass"));
+    assert!(out.contains("f16     8/8 cases pass"));
+    assert!(out.contains("contract: quality is measured per quantization level OK"));
+}
+
+#[test]
+fn lesson3_quality_bad_runtime_stops_the_demo() {
+    let (ok, _, err) = run(
+        env!("CARGO_BIN_EXE_lesson3_quality"),
+        &[("RLL_RUNTIME", "vllm")],
+    );
+    assert!(!ok);
+    assert!(err.contains("bad RLL_* environment"));
+}
+
+#[test]
+fn lesson3_quality_live_without_a_server_fails_loudly() {
+    let (ok, _, err) = run(
+        env!("CARGO_BIN_EXE_lesson3_quality"),
+        &[
+            ("RLL_LIVE", "1"),
+            ("RLL_QUANT", "q8_0"),
+            ("RLL_BASE_URL", "http://127.0.0.1:1"),
+        ],
+    );
+    assert!(!ok);
+    assert!(err.contains("demo run failed"));
+}

@@ -100,3 +100,24 @@ bindings:
   signature: 'fn contract_holds(&self) -> bool'
   status: implemented
   notes: Asserted by the lesson4_flakiness bin offline and in the live job.
+- contract: quantization-quality-v1.yaml
+  equation: case_passes
+  module_path: ch1_sovereign::quality::Case
+  function: passes
+  signature: 'fn passes(&self, answer: &str) -> bool'
+  status: implemented
+  notes: Falsified by quality::tests::checker_demands_every_property.
+- contract: quantization-quality-v1.yaml
+  equation: level_scored
+  module_path: ch1_sovereign::quality::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_quality bin; falsified by quality::tests::contract_rejects_empty_uneven_and_overfull_scores.
+- contract: whisper-merge-v1.yaml
+  equation: merged_one_line_per_file
+  module_path: ch1_sovereign::whisper
+  function: merged_contract_holds
+  signature: 'fn merged_contract_holds(merged: &str, files: usize) -> bool'
+  status: implemented
+  notes: Rust form of the lesson 1.5 contract; scripts/whisper-pipeline.sh output is checked against it in tests/whisper_script.rs and falsified by whisper::tests and scripts/test-whisper-pipeline.sh.
