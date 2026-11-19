@@ -8,6 +8,9 @@ use std::io::Write;
 /// Bits per weight of the GGUF quantization types the course compares.
 pub const LEVELS: [(&str, f64); 3] = [("q4_k_m", 4.85), ("q8_0", 8.5), ("f16", 16.0)];
 
+/// Parameters of the model lesson 1.3 sizes (0.6B). The README hero reads it too.
+pub const PARAMS: f64 = 0.6e9;
+
 /// Model size in bytes for a parameter count at a bits-per-weight level.
 pub fn size_bytes(params: f64, bits_per_weight: f64) -> f64 {
     params * bits_per_weight / 8.0
@@ -27,10 +30,9 @@ impl Summary {
 }
 
 pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, Error> {
-    let params = 0.6e9;
     let mut sizes = Vec::new();
     for (name, bpw) in LEVELS {
-        let bytes = size_bytes(params, bpw);
+        let bytes = size_bytes(PARAMS, bpw);
         let _ = writeln!(out, "{name:<7} {:>8.2} GiB", bytes / (1u64 << 30) as f64);
         sizes.push((name, bytes));
     }
