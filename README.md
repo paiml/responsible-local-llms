@@ -10,6 +10,7 @@ One Rust workspace, one test suite, and three local runtimes serving the same mo
 |------|------------|
 | `crates/rll-client` | One OpenAI-compatible chat client. `RLL_RUNTIME=apr\|ollama\|llamacpp` picks the runtime, `RLL_BASE_URL` overrides where it listens. |
 | `crates/ch1-sovereign` | Chapter 1 demos (lessons 2 to 4), each ending in an `assert!` and a `contract: ... OK` line. |
+| `crates/ch5-governance` | Chapter 5 demos (videos 5.1 to 5.4): licence checker, EU AI Act documentation generator, sensitivity router, release checklist. Offline, on recorded illustrative fixtures. |
 | `crates/ch4-agents` | Chapter 4 demos (videos 4.1 to 4.5): typed tool agent, local MCP server over loopback, agency limits, human approval with an audit log, tool-abuse evals. Offline, the model is a RECORDED, illustrative answer set; live legs check invariants only. |
 | `crates/ch3-guard` | Chapter 3 demos 3.3 and 3.4: PII and secret redaction (`lesson33_pii_redaction`) and input/output guardrails (`lesson34_guardrails`). Pure text, no runtime; run with `cargo run -p ch3-guard --bin lesson33_pii_redaction`. |
 | `scripts/` | `serve-apr.sh`, `serve-ollama.sh`, `serve-llamacpp.sh`, and the whisper.cpp pipeline for lesson 5. |
@@ -80,6 +81,10 @@ The same contracts are written down as YAML under `contracts/` and checked by
 | `agency-limits-v1` | lesson 4.3: allow-list, jail and dry-run; a refusal changes nothing |
 | `approval-audit-v1` | lesson 4.4: a destructive call needs a yes; the audit log is hash-chained |
 | `tool-output-is-data-v1` | lesson 4.5: injected tool output never widens agency; the benign case still passes |
+| `licence-check-v1` | lesson 5.1: no licence, no model; Allow only for a permissive table row |
+| `ai-act-doc-v1` | lesson 5.2: the generated document claims no evidence file that is absent |
+| `sensitivity-routing-v1` | lesson 5.3: no sensitive prompt reaches the hosted side; a local failure never falls back |
+| `responsible-checklist-v1` | lesson 5.4: a ticked box needs an evidence file that exists |
 | `demo-bin-v1` | every bin: contract docstring, `assert!` before the `contract: ... OK` line |
 
 `make pv` runs `pv lint` (bindings in `contracts/binding.yaml`), the ontology's sigma and shapes
@@ -87,6 +92,27 @@ gates, and `pv extract contracts --check` (the tracked `contracts.nt` / `shapes.
 The shapes read `evidence/demo-bins.jsonl` (from `scripts/demo-bins-jsonl.sh`) and
 `evidence/binary/snapshot.jsonl` (from `scripts/bin-snapshot.sh`); rerun both and commit when a
 bin is added or changed.
+
+## Chapter 5: governance (`crates/ch5-governance`)
+
+Four offline demos: `lesson1_licence_check`, `lesson2_ai_act_docs`, `lesson3_sensitivity_router`,
+`lesson4_checklist`. Everything they read is recorded and labelled: the model cards in
+`fixtures/cards/`, the sample repo in `fixtures/sample-repo/` and the hosted stand-in's reply are
+ILLUSTRATIVE, not real vendor or measured data. The hosted side of lesson 3 is a recorder with no
+network; `RLL_LIVE=1` sends only the local half to a real runtime. Run
+`cargo run -p ch5-governance --bin lesson4_checklist` to check `RESPONSIBLE-AI.md`.
+
+Sources, all accessed 2026-11-19 (the demo prints them with a `[read]` or `[NOT VERIFIED]` flag):
+
+- Apache-2.0 text: <https://www.apache.org/licenses/LICENSE-2.0.txt>; SPDX: <https://spdx.org/licenses/Apache-2.0.html>
+- Llama 3.1 community licence: <https://huggingface.co/meta-llama/Llama-3.1-8B/blob/main/LICENSE>
+- Model cards: <https://huggingface.co/docs/hub/model-cards>
+- EU AI Act Arts 50, 53, 99 (unofficial mirror): <https://artificialintelligenceact.eu/article/50/>, `/53/`, `/99/`
+- NOT VERIFIED: MIT text (<https://spdx.org/licenses/MIT.html>), Art 113 application dates
+  (<https://artificialintelligenceact.eu/article/113/>; the mirror shows conflicting amendments, so no
+  dates are stated), and the Art 5 prohibited list, Annex III and Art 9-15 titles
+  (<https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689>; the fetch returned recitals only).
+  Check them against the official text before you rely on them. This is not legal advice.
 
 ## License
 

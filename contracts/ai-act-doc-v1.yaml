@@ -1,0 +1,79 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 5.2: the generated AI Act document names the highest tier of the declared uses and claims only evidence that exists."
+  references:
+    - "crates/ch5-governance/src/aiact.rs"
+    - "crates/ch5-governance/src/bin/lesson2_ai_act_docs.rs"
+    - "crates/ch5-governance/src/sources.rs: every legal fact cites its source; unconfirmed ones say NOT VERIFIED"
+  tags:
+    - regulation
+    - governance
+
+equations:
+  doc_rows_honest:
+    formula: "∀ r ∈ rows: status(r) = Evidence(p) ⇒ file(root, p) exists ∧ status(r) = Missing(w) ⇒ w ≠ \"\""
+    domain: "a repo root holding governance.json"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "evidence is only cited when the file exists on disk"
+      - "a missing row always says why"
+      - "every row's article appears in the rendered markdown"
+    preconditions:
+      - "governance.json parses and every use is in the tier table"
+    postconditions:
+      - "doc.contract_holds(facts, root) implies no row cites a file that is absent"
+  tier_is_max:
+    formula: "tier(doc) = max over uses u of tier(u); tier(doc) = Prohibited ⇒ a blocking row exists"
+    domain: "the declared uses in governance.json"
+    codomain: "tier ∈ {Minimal, Limited, High, Prohibited}"
+    invariants:
+      - "an unknown use is an error, never Minimal"
+      - "a prohibited use always carries a blocking row"
+    preconditions:
+      - "uses is a list of strings"
+    postconditions:
+      - "doc.tier = classify(uses).tier"
+
+proof_obligations:
+  - type: invariant
+    property: "No invented evidence"
+    formal: "Evidence(p) ∈ rows ⇒ file(root, p) exists"
+    applies_to: doc_rows_honest
+  - type: invariant
+    property: "The tier is never lowered"
+    formal: "doc.tier = max(tier(u))"
+    applies_to: tier_is_max
+
+falsification_tests:
+  - id: FALSIFY-L52-001
+    rule: "Invented evidence"
+    prediction: "contract_holds is false when a row cites docs/nope.md"
+    test: "aiact::tests::contract_fails_on_invented_evidence"
+    if_fails: "the contract no longer checks the disk"
+  - id: FALSIFY-L52-002
+    rule: "A lowered tier or a dropped prohibition"
+    prediction: "contract_holds is false when a prohibited repo is documented as Limited or loses its blocking row"
+    test: "aiact::tests::contract_fails_on_a_lowered_tier_or_a_dropped_prohibition"
+    if_fails: "the contract no longer recomputes the tier"
+  - id: FALSIFY-L52-003
+    rule: "An unclassifiable use"
+    prediction: "classify refuses a use that is not in the table"
+    test: "aiact::tests::an_unknown_use_is_an_error_not_minimal"
+    if_fails: "unknown uses are silently treated as minimal"
+  - id: FALSIFY-L52-004
+    rule: "Bin enforces the contract"
+    prediction: "lesson2_ai_act_docs prints its contract line for the sample repo"
+    test: "tests/bins.rs::lesson2_documents_the_sample_repo"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L52-001
+  name: "AI Act document"
+  description: "Lesson 5.2 demo contract"
+  checks:
+    - "doc_rows_honest"
+    - "tier_is_max"
+  pass_criteria: "All falsification tests pass offline"

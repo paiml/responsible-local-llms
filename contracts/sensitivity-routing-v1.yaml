@@ -1,0 +1,67 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 5.3: sensitive prompts never reach the hosted side, and a failed local call is never retried there."
+  references:
+    - "crates/ch5-governance/src/router.rs"
+    - "crates/ch5-governance/src/bin/lesson3_sensitivity_router.rs"
+  tags:
+    - routing
+    - privacy
+
+equations:
+  sensitive_stays_local:
+    formula: "∀ p ∈ corpus: expect(p) = Local ⇒ p ∉ wire ∧ |wire| = |{p : route(p) = Hosted}|"
+    domain: "the recorded prompts in fixtures/prompts.jsonl, the hosted side being a recorder"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "no sensitive prompt text appears in any body sent to the hosted side"
+      - "every prompt takes its expected route"
+      - "both routes occur, so the contract is not vacuous"
+      - "a failed local call is an error, never a hosted retry"
+    preconditions:
+      - "the corpus has at least one local and one hosted prompt"
+    postconditions:
+      - "summary.contract_holds() implies the wire is empty of every local-expected prompt"
+
+proof_obligations:
+  - type: invariant
+    property: "Nothing sensitive crosses the wire"
+    formal: "route(p) = Local ⇒ p ∉ wire"
+    applies_to: sensitive_stays_local
+  - type: invariant
+    property: "Fail closed"
+    formal: "local(p) = Err ⇒ ask(p) = Err ∧ p ∉ wire"
+    applies_to: sensitive_stays_local
+
+falsification_tests:
+  - id: FALSIFY-L53-001
+    rule: "A leaked prompt"
+    prediction: "contract_holds is false when a sensitive prompt appears on the hosted wire"
+    test: "router::tests::contract_fails_when_a_sensitive_prompt_reaches_the_wire"
+    if_fails: "the contract no longer reads the wire"
+  - id: FALSIFY-L53-002
+    rule: "Wrong route"
+    prediction: "contract_holds is false when a prompt takes the wrong route"
+    test: "router::tests::contract_fails_when_a_prompt_takes_the_wrong_route"
+    if_fails: "the contract no longer compares routes"
+  - id: FALSIFY-L53-003
+    rule: "Fail closed"
+    prediction: "a dead local runtime gives an error and an empty hosted wire"
+    test: "router::tests::a_dead_local_runtime_fails_closed_and_never_falls_back_to_hosted"
+    if_fails: "a sensitive prompt can fall back to the hosted side"
+  - id: FALSIFY-L53-004
+    rule: "Bin enforces the contract on every runtime"
+    prediction: "lesson3_sensitivity_router prints its contract line for apr, ollama and llamacpp"
+    test: "tests/bins.rs::lesson3_prints_its_contract_for_each_runtime"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L53-001
+  name: "Sensitivity routing"
+  description: "Lesson 5.3 demo contract"
+  checks:
+    - "sensitive_stays_local"
+  pass_criteria: "All falsification tests pass offline"

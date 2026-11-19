@@ -17,3 +17,7 @@
 {"id":"lesson3_agency_limits","crate":"ch4-agents","source":"crates/ch4-agents/src/bin/lesson3_agency_limits.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson4_tool_abuse","crate":"ch4-agents","source":"crates/ch4-agents/src/bin/lesson4_tool_abuse.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson5_approval_audit","crate":"ch4-agents","source":"crates/ch4-agents/src/bin/lesson5_approval_audit.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson1_licence_check","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson1_licence_check.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson2_ai_act_docs","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson2_ai_act_docs.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson3_sensitivity_router","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson3_sensitivity_router.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson4_checklist","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson4_checklist.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
