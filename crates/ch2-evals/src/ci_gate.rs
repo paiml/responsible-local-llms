@@ -91,6 +91,26 @@ pub fn dropped(before: &Report, after: &Report) -> Vec<String> {
         .collect()
 }
 
+/// Asks a thinking model (Qwen3) to answer directly. Without it the 64-token budget is spent
+/// inside the model's reasoning and every answer comes back empty, so the gate would judge
+/// the token budget instead of the model.
+pub const DIRECT: &str = " /no_think";
+
+/// Wraps a live responder so every prompt asks for a direct answer.
+pub struct Direct<R: Responder>(pub R);
+
+impl<R: Responder> Responder for Direct<R> {
+    fn answer(
+        &self,
+        prompt: &str,
+        seed: u32,
+        temperature: f32,
+    ) -> Result<String, rll_client::Error> {
+        self.0
+            .answer(&format!("{prompt}{DIRECT}"), seed, temperature)
+    }
+}
+
 fn measure(r: &dyn Responder) -> Result<Report, RunError> {
     let cases = parse_jsonl(SET).expect("evals/ci-gate.jsonl is a valid eval set");
     run_suite(&cases, r, &SEEDS, 0.0)
@@ -109,7 +129,10 @@ pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, Ru
     let responders: Vec<(Runtime, Box<dyn Responder>)> = if live {
         let client = client_for(cfg.runtime, Some(&cfg.base_url), true);
         let model = cfg.model.clone();
-        vec![(cfg.runtime, Box::new(ClientResponder { client, model }))]
+        vec![(
+            cfg.runtime,
+            Box::new(Direct(ClientResponder { client, model })),
+        )]
     } else {
         Runtime::ALL
             .into_iter()
@@ -183,6 +206,17 @@ mod tests {
         assert!(text.contains("GATE PASS"));
         assert!(text.contains("GATE FAIL"));
         assert!(text.contains("dropped: capital-france, sum-17-25, largest-planet"));
+    }
+
+    #[test]
+    fn direct_appends_the_no_think_switch_to_the_prompt() {
+        struct Echo;
+        impl Responder for Echo {
+            fn answer(&self, p: &str, _: u32, _: f32) -> Result<String, rll_client::Error> {
+                Ok(p.to_string())
+            }
+        }
+        assert_eq!(Direct(Echo).answer("Q", 0, 0.0).unwrap(), "Q /no_think");
     }
 
     #[test]

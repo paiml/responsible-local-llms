@@ -79,6 +79,11 @@ falsification_tests:
     prediction: "lesson6_ci_gate prints 'contract: a gate that can fail OK' and exits 0, offline on three runtimes and live on the configured one"
     test: "tests/bins.rs::lesson6_prints_its_contract_and_runs_all_three_runtimes; tests/configured_runtime.rs live"
     if_fails: "the bin no longer asserts the contract"
+  - id: FALSIFY-E6-007
+    rule: "Direct answers"
+    prediction: "Every live prompt carries the /no_think switch, so a thinking model answers inside the token budget"
+    test: "ci_gate::tests::direct_appends_the_no_think_switch_to_the_prompt"
+    if_fails: "the gate judges the token budget, not the model"
 
 qa_gate:
   id: F-E6-001
