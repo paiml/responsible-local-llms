@@ -1,0 +1,13 @@
+{"id":"email","source":"illustrative","text":"Contact ada.lovelace@example.com for the invoice.","kinds":["email"],"redacted":"Contact [EMAIL] for the invoice."}
+{"id":"ssn","source":"illustrative","text":"My SSN is 123-45-6789, please file it.","kinds":["ssn"],"redacted":"My SSN is [SSN], please file it."}
+{"id":"card","source":"illustrative","text":"Charge 4111 1111 1111 1111 today.","kinds":["card"],"redacted":"Charge [CARD] today."}
+{"id":"phone","source":"illustrative","text":"Call me at (555) 010-0199 after lunch.","kinds":["phone"],"redacted":"Call me at [PHONE] after lunch."}
+{"id":"ipv4","source":"illustrative","text":"The server at 192.168.0.12 timed out.","kinds":["ipv4"],"redacted":"The server at [IP] timed out."}
+{"id":"key-openai-shape","source":"illustrative","text":"export OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwx","kinds":["api_key"],"redacted":"export OPENAI_API_KEY=[API_KEY]"}
+{"id":"key-aws-doc-example","source":"illustrative","text":"aws_access_key_id = AKIAIOSFODNN7EXAMPLE","kinds":["api_key"],"redacted":"aws_access_key_id = [API_KEY]"}
+{"id":"mixed","source":"illustrative","text":"Ada (ada@example.com, 555-010-0199) paid with 5500 0000 0000 0004 from 10.0.0.7.","kinds":["email","phone","card","ipv4"],"redacted":"Ada ([EMAIL], [PHONE]) paid with [CARD] from [IP]."}
+{"id":"unicode","source":"illustrative","text":"Résumé de María: écrire à maria@example.es avant lundi.","kinds":["email"],"redacted":"Résumé de María: écrire à [EMAIL] avant lundi."}
+{"id":"clean-version-and-date","source":"illustrative","text":"Version 1.2.3 shipped on 2026-11-19 with 4096 tokens.","kinds":[],"redacted":"Version 1.2.3 shipped on 2026-11-19 with 4096 tokens."}
+{"id":"clean-bad-luhn","source":"illustrative","text":"Order 4111111111111112 failed the checksum.","kinds":[],"redacted":"Order 4111111111111112 failed the checksum."}
+{"id":"clean-impossible-ssn","source":"illustrative","text":"Part number 000-12-3456 is not a valid SSN.","kinds":[],"redacted":"Part number 000-12-3456 is not a valid SSN."}
+{"id":"clean-no-pii","source":"illustrative","text":"No personal data here, only a question about quantization.","kinds":[],"redacted":"No personal data here, only a question about quantization."}

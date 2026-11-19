@@ -1,0 +1,6 @@
+{"id":"capital-france","prompt":"What is the capital of France? Answer in one sentence.","properties":[{"kind":"contains","value":"Paris"},{"kind":"max_words","n":20}]}
+{"id":"sum-17-25","prompt":"What is 17 plus 25? Answer with just the number.","properties":[{"kind":"one_of","values":["42","forty-two"]}]}
+{"id":"symbol-gold","prompt":"What is the chemical symbol for gold? Answer with just the symbol.","properties":[{"kind":"one_of","values":["Au"]}]}
+{"id":"largest-planet","prompt":"What is the largest planet in the solar system? Answer in one sentence.","properties":[{"kind":"contains","value":"Jupiter"},{"kind":"max_words","n":15}]}
+{"id":"water-boil","prompt":"At sea level, at what temperature in degrees Celsius does water boil? Answer with just the number.","properties":[{"kind":"one_of","values":["100"]}]}
+{"id":"opposite-hot","prompt":"What is the opposite of hot? Answer with one word.","properties":[{"kind":"one_of","values":["cold"]}]}

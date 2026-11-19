@@ -1,0 +1,12 @@
+[package]
+name = "rll-evals"
+description = "Evals as code: a jsonl test-set schema, a property checker and a seeded pass-rate runner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rll-client.workspace = true
+serde.workspace = true
+serde_json.workspace = true

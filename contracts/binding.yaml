@@ -114,3 +114,199 @@ bindings:
   signature: 'fn contract_holds(&self) -> bool'
   status: implemented
   notes: Asserted by the lesson4_checklist bin; falsified by checklist::tests.
+- contract: eval-spec-v1.yaml
+  equation: case_check
+  module_path: rll_evals::check::Case
+  function: check
+  signature: 'fn check(&self, answer: &str) -> Vec<String>'
+  status: implemented
+  notes: Falsified by check::tests::a_case_reports_every_failed_property.
+- contract: eval-spec-v1.yaml
+  equation: schema_valid
+  module_path: rll_evals::schema
+  function: parse_jsonl
+  signature: 'fn parse_jsonl(text: &str) -> Result<Vec<Case>, SchemaError>'
+  status: implemented
+  notes: Falsified by the schema::tests refusal cases.
+- contract: eval-spec-v1.yaml
+  equation: spec_judges_meaning
+  module_path: ch2_evals::test_set_spec::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson1_test_set_spec bin; falsified by test_set_spec::tests.
+- contract: eval-determinism-v1.yaml
+  equation: pass_rate
+  module_path: rll_evals::runner
+  function: run
+  signature: 'fn run(cases: &[Case], responder: &dyn Responder, seeds: &[u32], temperature: f32) -> Result<Report, RunError>'
+  status: implemented
+  notes: Falsified by runner::tests::empty_inputs_are_refused.
+- contract: eval-determinism-v1.yaml
+  equation: repeatable
+  module_path: ch2_evals::flakiness::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson4_flakiness bin offline and in the live job.
+- contract: quantization-quality-v1.yaml
+  equation: case_passes
+  module_path: ch1_sovereign::quality::Case
+  function: passes
+  signature: 'fn passes(&self, answer: &str) -> bool'
+  status: implemented
+  notes: Falsified by quality::tests::checker_demands_every_property.
+- contract: quantization-quality-v1.yaml
+  equation: level_scored
+  module_path: ch1_sovereign::quality::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_quality bin; falsified by quality::tests::contract_rejects_empty_uneven_and_overfull_scores.
+- contract: whisper-merge-v1.yaml
+  equation: merged_one_line_per_file
+  module_path: ch1_sovereign::whisper
+  function: merged_contract_holds
+  signature: 'fn merged_contract_holds(merged: &str, files: usize) -> bool'
+  status: implemented
+  notes: Rust form of the lesson 1.5 contract; scripts/whisper-pipeline.sh output is checked against it in tests/whisper_script.rs and falsified by whisper::tests and scripts/test-whisper-pipeline.sh.
+- contract: hallucination-citation-v1.yaml
+  equation: grounded
+  module_path: ch2_evals::hallucination
+  function: judge
+  signature: 'fn judge(case: &Case, answer: &str) -> Verdict'
+  status: implemented
+  notes: Falsified by hallucination::tests::the_checker_gives_each_failure_its_own_verdict.
+- contract: hallucination-citation-v1.yaml
+  equation: refusal
+  module_path: ch2_evals::hallucination
+  function: judge
+  signature: 'fn judge(case: &Case, answer: &str) -> Verdict'
+  status: implemented
+  notes: Falsified by hallucination::tests::an_unanswerable_question_needs_the_refusal.
+- contract: hallucination-citation-v1.yaml
+  equation: checker_catches_all
+  module_path: ch2_evals::hallucination::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_hallucination bin.
+- contract: structured-output-retry-v1.yaml
+  equation: schema_valid
+  module_path: ch2_evals::structured
+  function: validate
+  signature: 'fn validate(schema: &Value, value: &Value) -> Vec<String>'
+  status: implemented
+  notes: Falsified by structured::tests schema refusal cases.
+- contract: structured-output-retry-v1.yaml
+  equation: bounded_retry
+  module_path: ch2_evals::structured
+  function: ask
+  signature: 'fn ask(...)'
+  status: implemented
+  notes: Falsified by structured::tests::retries_are_bounded_and_give_no_value.
+- contract: structured-output-retry-v1.yaml
+  equation: summary_sound
+  module_path: ch2_evals::structured::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_structured bin.
+- contract: elo-ranking-v1.yaml
+  equation: expected_score
+  module_path: ch2_evals::elo
+  function: expected_score
+  signature: 'fn expected_score(ra: f64, rb: f64) -> f64'
+  status: implemented
+  notes: Falsified by elo::tests expected-score test.
+- contract: elo-ranking-v1.yaml
+  equation: elo_update
+  module_path: ch2_evals::elo
+  function: rate
+  signature: 'fn rate(...)'
+  status: implemented
+  notes: Falsified by elo::tests::a_win_moves_k_over_two_points_from_loser_to_winner.
+- contract: elo-ranking-v1.yaml
+  equation: good_enough
+  module_path: ch2_evals::elo
+  function: good_enough
+  signature: 'fn good_enough(...) -> bool'
+  status: implemented
+  notes: Falsified by elo::tests::good_enough_is_a_threshold_on_the_expected_score.
+- contract: bias-probe-v1.yaml
+  equation: bias_gap
+  module_path: ch3_safety::bias::Measurement
+  function: gap
+  signature: 'fn gap(&self) -> f64'
+  status: implemented
+  notes: Falsified by bias::tests::an_answer_outside_the_allowed_words_counts_as_a_gap.
+- contract: bias-probe-v1.yaml
+  equation: checker_sees_bias
+  module_path: ch3_safety::bias::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson1_bias_probes bin; falsified by bias::tests.
+- contract: prompt-injection-block-v1.yaml
+  equation: screen_blocks_injection
+  module_path: ch3_safety::injection
+  function: screen
+  signature: 'fn screen(doc: &str) -> Verdict'
+  status: implemented
+  notes: Falsified by injection::tests::the_screen_lets_ordinary_text_through.
+- contract: prompt-injection-block-v1.yaml
+  equation: injection_contract
+  module_path: ch3_safety::injection::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_prompt_injection bin; falsified by injection::tests.
+- contract: redteam-gate-v1.yaml
+  equation: attack_set_valid
+  module_path: ch3_redteam::redteam
+  function: validate_set
+  signature: 'fn validate_set(cases: &[Case]) -> Result<(), String>'
+  status: implemented
+  notes: Falsified by redteam::tests::an_attack_with_no_goal_cannot_fail_and_is_refused.
+- contract: redteam-gate-v1.yaml
+  equation: red_team_gate
+  module_path: ch3_redteam::redteam::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson5_redteam bin offline and in the live job.
+- contract: typed-tool-calls-v1.yaml
+  equation: typed_only
+  module_path: ch4_agents::agent::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson1_typed_agent bin; falsified by agent::tests.
+- contract: mcp-loopback-v1.yaml
+  equation: loopback_roundtrip
+  module_path: ch4_agents::mcp::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_mcp_loopback bin; falsified by mcp::tests.
+- contract: agency-limits-v1.yaml
+  equation: guarded
+  module_path: ch4_agents::agency::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_agency_limits bin; falsified by agency::tests.
+- contract: approval-audit-v1.yaml
+  equation: approved_and_audited
+  module_path: ch4_agents::approval::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson5_approval_audit bin; falsified by approval::tests.
+- contract: tool-output-is-data-v1.yaml
+  equation: only_safe_calls_ran
+  module_path: ch4_agents::abuse::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson4_tool_abuse bin; falsified by abuse::tests.

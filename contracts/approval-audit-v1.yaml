@@ -1,0 +1,63 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 4.4: a destructive call needs a human yes, and every decision is written to a hash-chained audit log. A refused call never asks the human. The approver here is scripted."
+  references:
+    - "crates/ch4-agents/src/approval.rs"
+    - "crates/ch4-agents/src/bin/lesson5_approval_audit.rs"
+  tags:
+    - agents
+    - audit
+
+equations:
+  approved_and_audited:
+    formula: "verify(log) = true ∧ ∀ destructive c: executed(c) ⇒ approver(c) = yes"
+    domain: "log: FNV hash-chained entries"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "every decision, including refusals, is one log entry"
+      - "a reordered or edited line fails verify"
+      - "a call the policy refuses never reaches the approver"
+    preconditions:
+      - "the approver is scripted in the demo"
+    postconditions:
+      - "contract_holds(s) implies a denied call did not run and the chain verifies"
+
+proof_obligations:
+  - type: invariant
+    property: "The chain detects tampering"
+    formal: "edit(log) ⇒ verify(log) = false"
+    applies_to: approved_and_audited
+
+falsification_tests:
+  - id: FALSIFY-A4-001
+    rule: "Each clause can fail"
+    prediction: "Breaking any one clause makes contract_holds false"
+    test: "approval::tests::each_contract_clause_can_fail"
+    if_fails: "contract_holds ignores a clause"
+  - id: FALSIFY-A4-002
+    rule: "A refused call never asks"
+    prediction: "The approver is not asked about a call the policy refused"
+    test: "approval::tests::a_refused_call_never_asks_the_human"
+    if_fails: "a refused call reaches the human"
+  - id: FALSIFY-A4-003
+    rule: "Tampering is detected"
+    prediction: "A reordered log line fails verify"
+    test: "approval::tests::a_dry_run_is_logged_and_the_chain_detects_a_reordered_line"
+    if_fails: "the audit log can be rewritten silently"
+  - id: FALSIFY-A4-004
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson5_approval_audit prints 'contract: approved and audited OK' and exits 0"
+    test: "tests/bins.rs::lesson5_prints_its_contract"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-A4-001
+  name: "Approved and audited"
+  description: "Lesson 4.4 demo contract"
+  checks:
+    - "approved_and_audited"
+  pass_criteria: "All falsification tests pass; the bin prints its contract line"
+  status: implemented

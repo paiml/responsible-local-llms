@@ -5,7 +5,8 @@
 # Usage: scripts/live-suite.sh [runtime ...]     (default: $RLL_LIVE_RUNTIMES, else "llamacpp ollama")
 #   llamacpp, ollama  run from pinned container images (needs docker; nothing is installed on the host)
 #   apr               runs scripts/serve-apr.sh (needs `apr` on PATH)
-# Env: RLL_MODEL_DIR  where the test model is cached (default .cache/models)
+# Env: RLL_QUANT (set to q4_k_m here: the cached model) labels the lesson3_quality score.
+#      RLL_MODEL_DIR  where the test model is cached (default .cache/models)
 #
 # A runtime that cannot start fails the run with a message naming what is missing.
 set -euo pipefail
@@ -87,8 +88,10 @@ base_url() { # runtime -> sets BASE
 for rt in "${runtimes[@]}"; do
   base_url "$rt"
   echo "live-suite: $rt up at $BASE"
-  RLL_LIVE=1 RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
+  RLL_LIVE=1 RLL_QUANT=q4_k_m RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
     cargo test -q -p ch1-sovereign --test configured_runtime -- --nocapture --test-threads 1
+  RLL_LIVE=1 RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
+    cargo test -q -p ch4-agents --test configured_runtime -- --nocapture --test-threads 1
   echo "live-suite: $rt PASS"
 done
 echo "live-suite: PASS (${runtimes[*]})"

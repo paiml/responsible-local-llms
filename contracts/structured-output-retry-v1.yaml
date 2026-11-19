@@ -1,0 +1,114 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 2.3: structured output you can trust. A reply is accepted only if it parses as JSON and validates against the schema; a refusal, prose or a wrong value is retried with the reasons, within a bound, and an exhausted case yields no value instead of a bad one."
+  references:
+    - "evals/ticket.schema.json"
+    - "evals/structured.jsonl"
+    - "crates/ch2-evals/src/structured.rs"
+    - "crates/ch2-evals/src/bin/lesson3_structured.rs"
+    - "crates/ch2-evals/fixtures/structured.jsonl"
+  tags:
+    - evals
+    - structured-output
+    - retry
+
+equations:
+  schema_valid:
+    formula: "validate(S, v) = [] ⇔ v satisfies every keyword of S; a keyword outside the supported set is itself an error"
+    domain: "S: a JSON schema, v: any JSON value"
+    codomain: "the list of problems, empty exactly when v is valid"
+    invariants:
+      - "a wrong type, a value outside an enum, a number outside its bounds, a missing required key, an extra key and a too-short string are each a problem"
+      - "an unknown schema keyword fails closed"
+      - "the empty object is refused by the ticket schema (the validator is not one that accepts everything)"
+    preconditions:
+      - "S is a JSON object"
+    postconditions:
+      - "validate(S, v) = [] implies v has every required key with a value of the right type and range"
+  bounded_retry:
+    formula: "ask(M, S, p, max) = (Some(v), attempts) ⇒ validate(S, v) = [] ∧ |attempts| ≤ max ∧ last(attempts).problems = []; ask = (None, attempts) ⇒ |attempts| = max ∧ ∀ a: a.problems ≠ []"
+    domain: "M: a responder, S: schema, p: prompt, max ≥ 1"
+    codomain: "an accepted value with its attempts, or no value with every attempt rejected"
+    invariants:
+      - "a retry prompt carries the reasons the previous reply was rejected"
+      - "the first valid reply ends the loop"
+      - "retries are bounded; when they run out the caller gets no value, never a bad one"
+    preconditions:
+      - "max ≥ 1"
+    postconditions:
+      - "an accepted value validates against the schema"
+  summary_sound:
+    formula: "contract_holds(s) ⇔ floor_refused ∧ ∀ o ∈ outcomes: (o.value = Some(v) ⇒ validate(S, v) = [] ∧ last attempt clean) ∧ (o.value = None ⇒ all attempts used and rejected) ∧ |o.attempts| ≤ MAX"
+    domain: "s: the Summary of a run"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "offline, each case needs exactly the number of attempts its recording has"
+    preconditions:
+      - "MAX_ATTEMPTS = 3"
+    postconditions:
+      - "contract_holds(s) implies no outcome carries an invalid value"
+
+proof_obligations:
+  - type: invariant
+    property: "An accepted value is valid"
+    formal: "ask(M, S, p, max) = (Some(v), _) ⇒ validate(S, v) = []"
+    applies_to: bounded_retry
+  - type: invariant
+    property: "Retries are bounded"
+    formal: "|attempts| ≤ max"
+    applies_to: bounded_retry
+
+falsification_tests:
+  - id: FALSIFY-S23-001
+    rule: "The schema refuses each kind of bad ticket"
+    prediction: "Missing key, wrong type, bad enum, out-of-range number, empty string, bad item and extra key are each a problem"
+    test: "structured::tests::the_schema_accepts_a_good_ticket_and_refuses_each_kind_of_bad_one"
+    if_fails: "the validator lets a bad reply through"
+  - id: FALSIFY-S23-002
+    rule: "Unknown keywords fail closed"
+    prediction: "A schema keyword the validator does not know is a problem, not silently ignored"
+    test: "structured::tests::an_unknown_keyword_or_a_non_object_schema_fails_closed"
+    if_fails: "a schema the validator cannot enforce passes everything"
+  - id: FALSIFY-S23-003
+    rule: "Prose and refusals are not JSON"
+    prediction: "extract_json refuses a refusal and a sentence that merely contains JSON"
+    test: "structured::tests::extract_json_reads_plain_fenced_and_refuses_prose"
+    if_fails: "a refusal or prose-wrapped reply is accepted as data"
+  - id: FALSIFY-S23-004
+    rule: "Retries are bounded and give no value"
+    prediction: "A responder that never complies yields (None, max attempts), and zero attempts yields none"
+    test: "structured::tests::retries_are_bounded_and_give_no_value"
+    if_fails: "the loop runs forever or returns a bad value"
+  - id: FALSIFY-S23-005
+    rule: "An accepted value that is invalid"
+    prediction: "Replacing an accepted value with an invalid one makes contract_holds false"
+    test: "structured::tests::contract_fails_when_an_accepted_value_is_invalid"
+    if_fails: "contract_holds no longer re-validates"
+  - id: FALSIFY-S23-006
+    rule: "A validator that accepts everything"
+    prediction: "floor_refused = false makes contract_holds false"
+    test: "structured::tests::contract_fails_when_the_validator_accepts_everything"
+    if_fails: "the floor check is gone"
+  - id: FALSIFY-S23-007
+    rule: "A gave-up case that did not try"
+    prediction: "A no-value outcome with fewer attempts than the bound, or with a clean attempt, makes contract_holds false"
+    test: "structured::tests::contract_fails_when_a_gave_up_case_did_not_use_every_attempt"
+    if_fails: "giving up early is accepted"
+  - id: FALSIFY-S23-008
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson3_structured prints 'contract: trust the reply or get no reply OK' for every runtime and exits 0"
+    test: "tests/bins.rs::lesson3_prints_its_contract_for_each_runtime; tests/configured_runtime.rs live"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-S23-001
+  name: "Trust the reply or get no reply"
+  description: "Lesson 2.3 demo contract"
+  checks:
+    - "schema_valid"
+    - "bounded_retry"
+    - "summary_sound"
+  pass_criteria: "All falsification tests pass offline; the bin prints its contract line"

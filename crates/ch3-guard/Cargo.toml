@@ -1,0 +1,11 @@
+[package]
+name = "ch3-guard"
+description = "Chapter 3 demos 3.3 and 3.4: PII and secret redaction, input and output guardrails"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true

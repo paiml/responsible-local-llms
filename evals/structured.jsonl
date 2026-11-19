@@ -1,0 +1,5 @@
+{"id":"clean","message":"The office printer is offline again and nobody can print invoices. Two hours of work for IT, high priority."}
+{"id":"refusal-then-ok","message":"Request: add the new hire to the shared calendar. Low priority, about 1 hour."}
+{"id":"prose-wrapped","message":"The staging site shows a blank page after login. Medium priority, 4 hours, tags web and bug."}
+{"id":"bad-enum","message":"Production database backups failed last night. Critical, 8 hours, tag database."}
+{"id":"always-refuses","message":"Reset the password for the finance dashboard. Low priority, 1 hour."}

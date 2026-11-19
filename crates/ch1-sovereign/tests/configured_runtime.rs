@@ -26,3 +26,9 @@ fn lesson4_contract_holds_on_the_configured_runtime() {
     let out = run_inheriting_env(env!("CARGO_BIN_EXE_lesson4_economics"));
     assert!(out.contains("contract: break-even is exact OK"));
 }
+
+#[test]
+fn lesson3_quality_holds_on_the_configured_runtime() {
+    let out = run_inheriting_env(env!("CARGO_BIN_EXE_lesson3_quality"));
+    assert!(out.contains("contract: quality is measured per quantization level OK"));
+}
