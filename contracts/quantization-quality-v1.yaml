@@ -1,0 +1,78 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 1.3: quantization can cost answer quality, so quality is scored per level on a fixed case set, never assumed."
+  references:
+    - "crates/ch1-sovereign/src/quality.rs"
+    - "crates/ch1-sovereign/src/bin/lesson3_quality.rs"
+    - "evals/quantization-quality.jsonl"
+  tags:
+    - quantization
+    - evals
+
+equations:
+  case_passes:
+    formula: "pass(case, answer) = (∀ m ∈ must_contain: m ⊆ answer) ∧ (∀ n ∈ must_not_contain: n ⊄ answer)"
+    domain: "case: one line of evals/quantization-quality.jsonl, answer: model text"
+    codomain: "pass ∈ {true, false}"
+    invariants:
+      - "an answer missing a required property fails"
+      - "an answer holding a forbidden property fails"
+    preconditions:
+      - "case.must_contain is non-empty for every shipped case"
+    postconditions:
+      - "matching is case-insensitive substring containment"
+  level_scored:
+    formula: "rate(level) = passed(level) / total, total = |cases|"
+    domain: "one quantization level scored over the whole case set"
+    codomain: "rate ∈ [0, 1]"
+    invariants:
+      - "every level in a summary saw the same non-zero case count"
+      - "passed ≤ total"
+    preconditions:
+      - "|cases| > 0"
+    postconditions:
+      - "Summary::contract_holds() is true"
+
+proof_obligations:
+  - type: invariant
+    property: "A level never scores above the cases it saw"
+    formal: "contract_holds(s) ⇒ ∀ l ∈ s: l.passed ≤ l.total ∧ l.total > 0"
+    applies_to: level_scored
+  - type: invariant
+    property: "A case needs every required property"
+    formal: "pass(c, a) ⇒ ∀ m ∈ c.must_contain: m ⊆ a"
+    applies_to: case_passes
+
+falsification_tests:
+  - id: FALSIFY-L3Q-001
+    rule: "A wrong answer fails its case"
+    prediction: "Lyon fails capital-france, Paris with Lyon fails, 'I do not know' scores 0 of 8"
+    test: "quality::tests::checker_demands_every_property; quality::tests::a_broken_answer_set_fails_the_score"
+    if_fails: "the checker no longer demands the required properties"
+  - id: FALSIFY-L3Q-002
+    rule: "Empty, uneven or overfull scores break the contract"
+    prediction: "contract_holds is false for no levels, zero cases, unequal totals and passed > total"
+    test: "quality::tests::contract_rejects_empty_uneven_and_overfull_scores"
+    if_fails: "contract_holds no longer checks the score shape"
+  - id: FALSIFY-L3Q-003
+    rule: "A missing recorded level or answer is an error, not a pass"
+    prediction: "dropping q8_0 or one q8_0 answer makes score_recorded fail"
+    test: "quality::tests::missing_recorded_levels_and_answers_are_errors"
+    if_fails: "offline scoring silently skips missing answers"
+  - id: FALSIFY-L3Q-004
+    rule: "Bin enforces the contract, offline and against a live transport"
+    prediction: "lesson3_quality prints its contract line offline; the live path scores 1 of 8 against a loopback server that answers only one prompt right"
+    test: "tests/bins.rs::lesson3_quality_prints_its_contract; tests/quality_live.rs::live_scores_one_level_from_the_runtime"
+    if_fails: "the bin no longer asserts the contract or the live path does not score"
+
+qa_gate:
+  id: F-L3Q-001
+  name: "Quantization quality"
+  description: "Lesson 1.3 quality contract"
+  checks:
+    - "case_passes"
+    - "level_scored"
+  pass_criteria: "All falsification tests pass offline; the bin prints its contract line"
