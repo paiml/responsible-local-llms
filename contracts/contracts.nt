@@ -275,6 +275,18 @@
 <https://ont.paiml.dev/v1alpha1/binary/ch5-governance/lesson4_checklist> <https://ont.paiml.dev/v1alpha1/bin/target> "lesson4_checklist"^^<http://www.w3.org/2001/XMLSchema#string> .
 <https://ont.paiml.dev/v1alpha1/binary/ch5-governance/lesson4_checklist> <https://ont.paiml.dev/v1alpha1/bin/versionSha256> "0fbd8b5cc507d2154fe16bd2ac270f0d0d57798afb8c0bb8611aecce92ad2e52"^^<http://www.w3.org/2001/XMLSchema#string> .
 <https://ont.paiml.dev/v1alpha1/binary/ch5-governance/lesson4_checklist> <https://ont.paiml.dev/v1alpha1/bin/versionString> "lesson4_checklist 0.1.0 (26abcdce7)"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/ns/prov#Entity> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://ont.paiml.dev/v1alpha1/Binary> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://ont.paiml.dev/v1alpha1/bin/target/one-gate/one-gate> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/gitSha> "51268bbcabe01a08f2165dae1c87a138b29006eb"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/helpSha256> "eed5296bf236a10da239033a8bdb8e3aa35c52da2b0cf3c6116c4105134aa16a"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/name> "one-gate"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/package> "one-gate"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/sha256> "655d37ea3d11292bc7e2f790bc81ed336daefef94eaef4b8c7ecd1ea46e866bd"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/srcPath> "crates/one-gate/src/main.rs"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/target> "one-gate"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/versionSha256> "0208c91bc6b8ea19db715aacbadc3fdc8e3d2d8d892b5dbdd29b4bebc930a447"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/versionString> "one-gate 0.1.0 (51268bbca)"^^<http://www.w3.org/2001/XMLSchema#string> .
 <https://ont.paiml.dev/v1alpha1/contract/agency-limits-v1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/ns/prov#Entity> .
 <https://ont.paiml.dev/v1alpha1/contract/agency-limits-v1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://ont.paiml.dev/v1alpha1/Contract> .
 <https://ont.paiml.dev/v1alpha1/contract/agency-limits-v1> <https://ont.paiml.dev/v1alpha1/file> "contracts/agency-limits-v1.yaml"^^<http://www.w3.org/2001/XMLSchema#string> .
