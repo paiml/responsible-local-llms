@@ -7,3 +7,5 @@
 {"id":"lesson3_structured","crate":"ch2-evals","source":"crates/ch2-evals/src/bin/lesson3_structured.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson4_flakiness","crate":"ch2-evals","source":"crates/ch2-evals/src/bin/lesson4_flakiness.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson5_elo","crate":"ch2-evals","source":"crates/ch2-evals/src/bin/lesson5_elo.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson1_bias_probes","crate":"ch3-safety","source":"crates/ch3-safety/src/bin/lesson1_bias_probes.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson2_prompt_injection","crate":"ch3-safety","source":"crates/ch3-safety/src/bin/lesson2_prompt_injection.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
