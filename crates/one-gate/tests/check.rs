@@ -1,0 +1,1654 @@
+//! Every evasion in the sign-off rounds of paiml/responsible-local-llms#54 is a failing fixture
+//! here, beside the positive tests on the synthetic good tree and on this repository. The check
+//! is an allow-list: each test plants something the check must NOT positively understand.
+
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static N: AtomicUsize = AtomicUsize::new(0);
+
+const GOOD: &str = "name: CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  gate:
+    name: gate
+    runs-on: [self-hosted, clean-room, X64, ffmpeg]
+    steps:
+      - run: true
+";
+
+const ALLOW: &str = "trigger push main
+trigger workflow_run main
+trigger merge_group main
+trigger pull_request pr
+trigger workflow_dispatch neutral
+trigger workflow_call neutral
+trigger schedule neutral live.yml
+";
+
+fn tree(files: &[(&str, &str)]) -> PathBuf {
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "one-gate-{}-{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::SeqCst)
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    for (rel, body) in files {
+        let p = root.join(rel);
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, body).unwrap();
+    }
+    root
+}
+
+fn wf(name: &str) -> String {
+    format!(".github/workflows/{name}")
+}
+
+/// Violations for the given workflow files, required list and allow-list.
+fn run(files: &[(&str, &str)], required: &str, allow: &str) -> Vec<String> {
+    let mut all: Vec<(String, &str)> = files.iter().map(|(n, b)| (wf(n), *b)).collect();
+    all.push((".github/required-status-checks.txt".to_owned(), required));
+    all.push((".github/one-gate-allow.txt".to_owned(), allow));
+    let refs: Vec<(&str, &str)> = all.iter().map(|(n, b)| (n.as_str(), *b)).collect();
+    one_gate::check(&tree(&refs))
+}
+
+/// ci.yml (GOOD) plus the given extra workflow, required list `gate`.
+fn with_extra(extra: &str) -> Vec<String> {
+    with_extra_req(extra, "gate\n")
+}
+
+fn with_extra_req(extra: &str, required: &str) -> Vec<String> {
+    run(&[("ci.yml", GOOD), ("extra.yml", extra)], required, ALLOW)
+}
+
+/// One ci.yml, required list `gate`.
+fn only(ci: &str) -> Vec<String> {
+    only_allow(ci, ALLOW)
+}
+
+fn only_allow(ci: &str, allow: &str) -> Vec<String> {
+    run(&[("ci.yml", ci)], "gate\n", allow)
+}
+
+fn has(v: &[String], needle: &str) {
+    assert!(
+        v.iter().any(|l| l.contains(needle)),
+        "no '{needle}' in {v:?}"
+    );
+}
+
+fn none(v: Vec<String>) {
+    assert_eq!(v, Vec::<String>::new());
+}
+
+fn main_job(on: &str) -> String {
+    format!("name: x\non: {on}\njobs:\n  sneaky:\n    runs-on: x\n    steps:\n      - run: true\n")
+}
+
+const NOT_REQ: &str = "is not in .github/required-status-checks.txt";
+const CLOSED: &str = "fails closed";
+const KEYS: &str = "key allow-list";
+const IF_MSG: &str = "'if' that is not byte-equal";
+
+// ---- positive ------------------------------------------------------------------------------
+
+#[test]
+fn good_tree_passes() {
+    none(only(GOOD));
+}
+
+#[test]
+fn this_repository_passes() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    none(one_gate::check(&root));
+}
+
+#[test]
+fn uppercase_extension_is_read() {
+    let canon = "not a regular file named";
+    has(
+        &run(&[("ci.yml", GOOD), ("ci2.YML", GOOD)], "gate\n", ALLOW),
+        canon,
+    );
+    has(
+        &run(
+            &[("ci.yml", GOOD), ("x.YAML", &main_job("push"))],
+            "gate\n",
+            ALLOW,
+        ),
+        canon,
+    );
+}
+
+// ---- round 1 and 2 evasions ----------------------------------------------------------------
+
+#[test]
+fn single_quoted_on_key() {
+    has(
+        &with_extra("'on':\n  push:\njobs:\n  sneaky:\n    runs-on: x\n"),
+        NOT_REQ,
+    );
+}
+
+#[test]
+fn double_quoted_on_scalar() {
+    has(
+        &with_extra(&main_job("push").replace("on: push", "\"on\": push")),
+        NOT_REQ,
+    );
+}
+
+#[test]
+fn yaml_11_boolean_true_key_is_on() {
+    has(
+        &with_extra(&main_job("{push: }").replace("on:", "true:")),
+        KEYS,
+    );
+}
+
+#[test]
+fn flow_mapping_triggers() {
+    has(
+        &with_extra(&main_job("{push: {branches: [main]}}")),
+        NOT_REQ,
+    );
+}
+
+#[test]
+fn alias_triggers() {
+    let y = "t: &t\n  push:\n    branches: [main]\non: *t\njobs:\n  sneaky:\n    runs-on: x\n";
+    has(&with_extra(y), KEYS);
+    // An alias inside an allowed key still resolves, and the trigger is judged as written.
+    let y = "on: &t\n  push:\n    branches: [main]\npermissions: *t\njobs:\n  sneaky:\n    runs-on: x\n";
+    has(&with_extra(y), NOT_REQ);
+}
+
+#[test]
+fn four_space_indentation() {
+    let y = "on:\n    push:\n        branches: [main]\njobs:\n    sneaky:\n        runs-on: x\n";
+    has(&with_extra(y), NOT_REQ);
+}
+
+#[test]
+fn quoted_job_key() {
+    let y = "on: push\njobs:\n  \"sneaky\":\n    runs-on: x\n";
+    has(&with_extra(y), NOT_REQ);
+}
+
+#[test]
+fn inline_job_mapping() {
+    let y = "on: push\njobs:\n  sneaky: {runs-on: x, steps: [{run: true}]}\n";
+    has(&with_extra(y), NOT_REQ);
+}
+
+#[test]
+fn crlf_line_endings() {
+    let y = main_job("push").replace('\n', "\r\n");
+    has(&with_extra(&y), NOT_REQ);
+}
+
+#[test]
+fn job_level_if_on_head_ref() {
+    let y = "on:\n  push:\n  pull_request:\njobs:\n  second:\n    if: github.head_ref == ''\n    runs-on: x\n";
+    has(&with_extra_req(y, "gate\nsecond\n"), IF_MSG);
+}
+
+#[test]
+fn block_scalar_if() {
+    let y = "on:\n  push:\n  pull_request:\njobs:\n  second:\n    if: >-\n      github.event_name\n      == 'push'\n    runs-on: x\n";
+    has(&with_extra_req(y, "gate\nsecond\n"), IF_MSG);
+}
+
+#[test]
+fn non_string_if() {
+    let y = "on:\n  push:\n  pull_request:\njobs:\n  second:\n    if: true\n    runs-on: x\n";
+    has(&with_extra_req(y, "gate\nsecond\n"), IF_MSG);
+}
+
+#[test]
+fn if_allowed_only_when_byte_equal() {
+    let y = "on:\n  push:\n  pull_request:\njobs:\n  second:\n    if: always()\n    runs-on: x\n";
+    let ok = |allow: &str| {
+        run(
+            &[("ci.yml", GOOD), ("extra.yml", y)],
+            "gate\nsecond\n",
+            &format!("{ALLOW}{allow}"),
+        )
+    };
+    none(ok("if always()\n"));
+    has(&ok("if always() \n"), IF_MSG);
+    has(&ok("# if always()\n"), IF_MSG);
+}
+
+#[test]
+fn step_level_if_on_a_main_job_needs_an_allow_entry() {
+    let ci = GOOD.replace(
+        "- run: true",
+        "- run: true\n        if: github.event_name == 'push'",
+    );
+    has(&only(&ci), IF_MSG);
+    none(run(
+        &[("ci.yml", &ci)],
+        "gate\n",
+        &format!("{ALLOW}if github.event_name == 'push'\n"),
+    ));
+}
+
+#[test]
+fn pull_request_branches_ignore_main_is_no_pr_check() {
+    let y = "on:\n  push:\n    branches: [main]\n  pull_request:\n    branches-ignore: [main]\njobs:\n  gate:\n    runs-on: x\n";
+    has(&with_extra(y), "not byte-equal to a filter entry");
+    let allow = format!("{ALLOW}filter extra.yml pull_request branches-ignore no main\n");
+    let v = run(&[("ci.yml", GOOD), ("extra.yml", y)], "gate\n", &allow);
+    has(&v, "no pull_request trigger that covers main");
+    has(&v, "'gate' is produced more than once");
+}
+
+#[test]
+fn main_push_only_workflow_with_required_job() {
+    let y = "on:\n  push:\n    branches: [main]\njobs:\n  second:\n    runs-on: x\n";
+    let v = with_extra_req(y, "gate\nsecond\n");
+    has(&v, "no pull_request trigger that covers main");
+    has(&v, "no job renders that check name on pull_request");
+}
+
+#[test]
+fn workflow_run_and_merge_group_without_pull_request() {
+    has(&with_extra(&main_job("workflow_run")), NOT_REQ);
+    has(&with_extra(&main_job("[merge_group]")), NOT_REQ);
+    has(&with_extra(&main_job("push")), "no pull_request trigger");
+}
+
+#[test]
+fn unreadable_workflows_fail_closed() {
+    for y in [
+        "on: [",
+        "name: x\njobs: {}\n",
+        "- a\n- b\n",
+        "on:\njobs: {}\n",
+        "on: {}\njobs: {}\n",
+        "on: [1]\njobs: {}\n",
+        "on: {1: x}\njobs: {}\n",
+        "on: push\n",
+        "on: push\njobs: {}\n",
+        "on: push\njobs: [a]\n",
+        "on: push\njobs:\n  1:\n    runs-on: x\n",
+        "on: push\njobs:\n  a: 5\n",
+        "on: push\njobs:\n  a:\n    name: [x]\n",
+        "on: push\njobs:\n  a:\n    needs: 5\n",
+        "on: push\non: pull_request\njobs: {}\n",
+        "on: push\ntrue: pull_request\njobs: {}\n",
+        "on:\n  push:\n  push:\njobs: {}\n",
+        "on: push\njobs:\n  a:\n    <<: 5\n",
+        "on:\n  push: 5\njobs: {}\n",
+        "on: 5\njobs:\n  a:\n    runs-on: x\n",
+        "on: push\njobs:\n  a:\n    steps: x\n",
+        "on: push\njobs:\n  a:\n    steps: [x]\n",
+        "on: push\njobs:\n  a:\n    uses: 5\n",
+    ] {
+        has(&with_extra(y), CLOSED);
+    }
+}
+
+fn push_cfg(cfg: &str) -> Vec<String> {
+    with_extra(&format!(
+        "on:\n  push:\n{cfg}\njobs:\n  sneaky:\n    runs-on: x\n"
+    ))
+}
+
+#[test]
+fn push_branch_filters() {
+    for pat in [
+        "    branches: ['**']",
+        "    branches: [m*]",
+        "    branches: [mai?n]",
+        "    branches: [ma+in]",
+        "    branches: ['[mn]ain']",
+        "    branches: ['**', '!release']",
+        "    branches: [release, main]",
+        "    branches: [release/*]",
+        "    branches: ['!main']",
+        "    branches-ignore: [release]",
+        "    branches-ignore: [main]",
+        "    paths: [src]",
+        "    tags: [v*]",
+    ] {
+        has(&push_cfg(pat), "not byte-equal to a filter entry");
+    }
+    // The literal main is the only entry understood without a hand-written class.
+    has(&push_cfg("    branches: [main]"), NOT_REQ);
+    has(&push_cfg("    branches: main"), NOT_REQ);
+    // Allow-listed entries: byte equality and the hand-stated class decide, never the pattern.
+    let with = |entries: &str, cfg: &str| {
+        let allow = format!("{ALLOW}{entries}");
+        let y = format!("on:\n  push:\n{cfg}\njobs:\n  sneaky:\n    runs-on: x\n");
+        run(&[("ci.yml", GOOD), ("extra.yml", &y)], "gate\n", &allow)
+    };
+    none(with(
+        "filter extra.yml push branches no release/*\n",
+        "    branches: [release/*]",
+    ));
+    has(
+        &with(
+            "filter extra.yml push branches no release/*\n",
+            "    branches: [release/**]",
+        ),
+        "byte-equal",
+    );
+    has(
+        &with(
+            "filter other.yml push branches no release/*\n",
+            "    branches: [release/*]",
+        ),
+        "byte-equal",
+    );
+    has(
+        &with(
+            "filter extra.yml pull_request branches no release/*\n",
+            "    branches: [release/*]",
+        ),
+        "byte-equal",
+    );
+    has(
+        &with(
+            "filter extra.yml push branches yes **\n",
+            "    branches: ['**']",
+        ),
+        NOT_REQ,
+    );
+    has(
+        &with(
+            "filter extra.yml push branches-ignore yes release\n",
+            "    branches-ignore: [release]",
+        ),
+        NOT_REQ,
+    );
+    none(with(
+        "filter extra.yml push branches-ignore no main\n",
+        "    branches-ignore: [main]",
+    ));
+    none(with("filter extra.yml push tags no v*\n", "    tags: [v*]"));
+    has(
+        &with("filter extra.yml push tags yes v*\n", "    tags: [v*]"),
+        NOT_REQ,
+    );
+    has(
+        &with(
+            "filter extra.yml push tags-ignore yes v*\n",
+            "    tags-ignore: [v*]",
+        ),
+        NOT_REQ,
+    );
+    none(with(
+        "filter extra.yml push tags-ignore no v*\n",
+        "    tags-ignore: [v*]",
+    ));
+    has(
+        &with("filter extra.yml push paths yes src\n", "    paths: [src]"),
+        NOT_REQ,
+    );
+    has(
+        &with(
+            "filter extra.yml push branches yes dev\nfilter extra.yml push branches-ignore no x\n",
+            "    branches: [dev]\n    branches-ignore: [x]",
+        ),
+        CLOSED,
+    );
+    has(
+        &with(
+            "filter extra.yml push types yes opened\n",
+            "    types: [opened]",
+        ),
+        CLOSED,
+    );
+    for bad in [
+        "    branches: []",
+        "    branches: 5",
+        "    branches: [5]",
+        "    colour: [red]",
+        "    branches: [main]\n    branches-ignore: [x]",
+    ] {
+        has(&push_cfg(bad), CLOSED);
+    }
+    has(
+        &with(
+            "filter extra.yml push branches maybe x\n",
+            "    branches: [x]",
+        ),
+        "allow-list that cannot be read",
+    );
+}
+
+fn pr_cfg(cfg: &str) -> Vec<String> {
+    only(&GOOD.replace(
+        "  pull_request:\n    branches: [main]\n",
+        &format!("  pull_request:\n{cfg}\n"),
+    ))
+}
+
+#[test]
+fn pull_request_filters() {
+    none(pr_cfg("    branches: [main]"));
+    for unlisted in [
+        "    types: [opened, synchronize, reopened, labeled]",
+        "    branches-ignore: [release]",
+        "    branches: [release]",
+        "    branches-ignore: [main]",
+        "    paths: [src/**]",
+        "    paths-ignore: [docs/**]",
+        "    types: [opened]",
+    ] {
+        has(&pr_cfg(unlisted), "not byte-equal to a filter entry");
+    }
+    let with = |entries: &str, cfg: &str| {
+        let allow = format!("{ALLOW}{entries}");
+        only_allow(
+            &GOOD.replace(
+                "  pull_request:\n    branches: [main]\n",
+                &format!("  pull_request:\n{cfg}\n"),
+            ),
+            &allow,
+        )
+    };
+    none(with("filter ci.yml pull_request types yes opened\nfilter ci.yml pull_request types yes synchronize\nfilter ci.yml pull_request types yes reopened\nfilter ci.yml pull_request types yes labeled\n", "    types: [opened, synchronize, reopened, labeled]"));
+    has(
+        &with(
+            "filter ci.yml pull_request types yes opened\n",
+            "    types: [opened]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    none(with(
+        "filter ci.yml pull_request branches-ignore yes release\n",
+        "    branches-ignore: [release]",
+    ));
+    none(with(
+        "filter ci.yml pull_request branches yes release\n",
+        "    branches: [release, main]",
+    ));
+    has(
+        &with(
+            "filter ci.yml pull_request branches no release\n",
+            "    branches: [release]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    has(
+        &with(
+            "filter ci.yml pull_request branches-ignore no main\n",
+            "    branches-ignore: [main]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    has(
+        &with(
+            "filter ci.yml pull_request paths no src/**\n",
+            "    paths: [src/**]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    none(with(
+        "filter ci.yml pull_request paths yes src/**\n",
+        "    paths: [src/**]",
+    ));
+    has(
+        &with(
+            "filter ci.yml pull_request paths-ignore no docs/**\n",
+            "    paths-ignore: [docs/**]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    has(
+        &with("filter ci.yml pull_request tags yes v1\n", "    tags: [v1]"),
+        CLOSED,
+    );
+    has(
+        &with(
+            "filter ci.yml pull_request tags-ignore yes v1\n",
+            "    tags-ignore: [v1]",
+        ),
+        CLOSED,
+    );
+    has(&with("filter ci.yml pull_request branches yes a\nfilter ci.yml pull_request branches-ignore yes b\n", "    branches: [a]\n    branches-ignore: [b]"), CLOSED);
+    none(only(&GOOD.replace(
+        "  pull_request:\n    branches: [main]\n",
+        "  pull_request:\n",
+    )));
+}
+
+#[test]
+fn continue_on_error_is_a_third_state() {
+    has(
+        &only(&GOOD.replace("    steps:", "    continue-on-error: true\n    steps:")),
+        "continue-on-error",
+    );
+    has(
+        &only(&GOOD.replace(
+            "- run: true",
+            "- run: true\n        continue-on-error: ${{ true }}",
+        )),
+        "continue-on-error",
+    );
+    none(only(&GOOD.replace(
+        "    steps:",
+        "    continue-on-error: false\n    steps:",
+    )));
+}
+
+#[test]
+fn continue_on_error_on_a_pr_only_required_job() {
+    let y = "on: pull_request\njobs:\n  second:\n    continue-on-error: true\n    runs-on: x\n";
+    has(
+        &with_extra_req(y, "gate\nsecond\n"),
+        "second' has continue-on-error",
+    );
+}
+
+#[test]
+fn merge_keys_are_resolved() {
+    let ci = "on:\n  push:\n  pull_request:\nbase: &b\n  continue-on-error: true\njobs:\n  gate:\n    <<: *b\n    runs-on: x\n";
+    has(&only(ci), "merge key");
+    let ci = "on:\n  push:\n  pull_request:\njobs:\n  gate:\n    runs-on: x\n    steps:\n      - run: true\n        <<: {name: x}\n";
+    has(&only(ci), "merge key");
+}
+
+#[test]
+fn missing_or_empty_inputs() {
+    let t = tree(&[(&wf("ci.yml"), GOOD)]);
+    let v = one_gate::check(&t);
+    has(&v, "required-status-checks.txt");
+    has(&v, "lists no checks");
+    has(&v, "one-gate-allow.txt");
+    none(run(&[("ci.yml", GOOD)], "gate\n", ALLOW));
+    has(
+        &run(&[("ci.yml", GOOD)], "# none\n\n", ALLOW),
+        "lists no checks",
+    );
+    let t = tree(&[
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    has(&one_gate::check(&t), "workflows");
+    let t = tree(&[
+        (".github/workflows/README.md", "x"),
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    has(&one_gate::check(&t), "no workflow files");
+    let t = tree(&[
+        (".github/workflows/d.yml/keep", ""),
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    has(&one_gate::check(&t), "d.yml");
+    has(
+        &run(&[("ci.yaml", GOOD)], "gate\nghost\n", ALLOW),
+        "'ghost'",
+    );
+}
+
+// ---- round 3 refusals ------------------------------------------------------------------------
+
+const HELPER: &str = "on:\n  push:\n  pull_request:\njobs:\n  helper:\n    runs-on: x\n    steps:\n      - run: false\n";
+
+/// 3a: a gate that needs an unrequired helper fails open (GitHub reports a skipped job as
+/// Success, so a red helper would let the PR merge).
+#[test]
+fn needs_helper_that_is_not_required_is_red() {
+    let ci = GOOD.replace("    name: gate\n", "    name: gate\n    needs: helper\n");
+    let v = run(&[("ci.yml", &ci), ("h.yml", HELPER)], "gate\n", ALLOW);
+    has(&v, "needs 'helper', which is not a job of the workflow");
+    has(&v, "check name 'helper', which is not in");
+}
+
+#[test]
+fn needs_helper_in_the_same_file_is_red() {
+    let ci = format!("{GOOD}  helper:\n    runs-on: x\n    steps:\n      - run: false\n")
+        .replace("    name: gate\n", "    name: gate\n    needs: helper\n");
+    let v = only(&ci);
+    has(&v, "needs 'helper', which is not itself required");
+}
+
+#[test]
+fn needs_a_required_job_is_fine() {
+    let ci = format!("{GOOD}  helper:\n    runs-on: x\n    steps:\n      - run: true\n")
+        .replace("    name: gate\n", "    name: gate\n    needs: helper\n");
+    none(run(&[("ci.yml", &ci)], "gate\nhelper\n", ALLOW));
+}
+
+#[test]
+fn needs_a_job_that_does_not_exist() {
+    let ci = GOOD.replace("    name: gate\n", "    name: gate\n    needs: ghost\n");
+    has(&only(&ci), "needs 'ghost', which is not a job");
+}
+
+const AGG: &str = "on:
+  push:
+  pull_request:
+jobs:
+  helper:
+    runs-on: x
+    steps:
+      - run: true
+  lint:
+    runs-on: x
+    steps:
+      - run: true
+  gate:
+    needs: [helper, lint]
+    if: always()
+    runs-on: x
+    steps:
+      - if: needs.helper.result != 'success' || needs.lint.result != 'success'
+        run: exit 1
+";
+
+#[test]
+fn the_committed_aggregate_shape_guards_its_needs() {
+    none(run(&[("ci.yml", AGG)], "gate\n", ALLOW));
+    none(run(
+        &[(
+            "ci.yml",
+            &AGG.replace("if: always()", "if: ${{ always() }}"),
+        )],
+        "gate\n",
+        ALLOW,
+    ));
+    none(run(
+        &[(
+            "ci.yml",
+            &AGG.replace("if: needs.helper", "if: ${{ needs.helper")
+                .replace("'success'\n        run", "'success' }}\n        run"),
+        )],
+        "gate\n",
+        ALLOW,
+    ));
+}
+
+#[test]
+fn aggregate_shape_variants_are_red() {
+    let bad = [
+        AGG.replace("    if: always()\n", ""),
+        AGG.replace("if: always()", "if: success()"),
+        AGG.replace("if: always()", "if: github.ref == 'x'"),
+        AGG.replace(" || needs.lint.result != 'success'", ""),
+        AGG.replace("needs.lint.result != 'success'", "needs.helper.result != 'success'"),
+        AGG.replace("needs.lint.result != 'success'", "needs.lint.result == 'failure'"),
+        AGG.replace("run: exit 1", "run: exit 0"),
+        AGG.replace("      - if: needs.helper.result != 'success' || needs.lint.result != 'success'\n        run: exit 1", "      - run: exit 1"),
+        AGG.replace("      - if: needs.helper.result != 'success' || needs.lint.result != 'success'\n        run: exit 1", "      - if: true\n        run: exit 1"),
+        format!("{AGG}      - run: true\n"),
+        AGG.replace("      - if: needs.helper.result != 'success' || needs.lint.result != 'success'\n        run: exit 1\n", ""),
+        AGG.replace("    needs: [helper, lint]\n", "").replace("      - if: needs.helper.result != 'success' || needs.lint.result != 'success'", "      - if: false"),
+        AGG.replace("    runs-on: x\n    steps:\n      - if", "    runs-on: x\n    steps:\n      - continue-on-error: true\n        if"),
+    ];
+    for y in bad {
+        let v = run(&[("ci.yml", &y)], "gate\n", ALLOW);
+        assert!(!v.is_empty(), "aggregate variant passed:\n{y}");
+    }
+}
+
+#[test]
+fn aggregate_needs_still_carry_continue_on_error_and_if_rules() {
+    let y = AGG.replace(
+        "  lint:\n    runs-on: x\n",
+        "  lint:\n    runs-on: x\n    continue-on-error: true\n",
+    );
+    has(
+        &run(&[("ci.yml", &y)], "gate\n", ALLOW),
+        "continue-on-error",
+    );
+    let y = AGG.replace(
+        "  lint:\n    runs-on: x\n",
+        "  lint:\n    if: always()\n    runs-on: x\n",
+    );
+    has(&run(&[("ci.yml", &y)], "gate\n", ALLOW), IF_MSG);
+}
+
+/// 3b: the collision guard compares rendered check names, not job ids.
+#[test]
+fn pr_only_job_named_gate_collides() {
+    let y = "on: pull_request\njobs:\n  shadow:\n    name: gate\n    runs-on: x\n    steps:\n      - run: true\n";
+    has(
+        &with_extra(y),
+        "check name 'gate' is produced more than once",
+    );
+}
+
+#[test]
+fn matrix_job_producing_one_name_twice_collides() {
+    let y = "on: pull_request\njobs:\n  shadow:\n    name: fixed ${{ matrix.a }}\n    strategy:\n      matrix:\n        a: [one, one]\n    runs-on: x\n";
+    has(&with_extra(y), "'fixed one' is produced more than once");
+}
+
+/// 3c: unknown events are RED, not silently neutral.
+#[test]
+fn unknown_events_fail_closed() {
+    for ev in [
+        "page_build",
+        "status",
+        "check_suite",
+        "release",
+        "repository_dispatch",
+        "[issues, push]",
+        "{label: }",
+        "schedule",
+    ] {
+        has(
+            &with_extra(&main_job(ev)),
+            "not in .github/one-gate-allow.txt",
+        );
+    }
+}
+
+#[test]
+fn schedule_is_neutral_only_in_the_files_that_list_it() {
+    let sched = "on:\n  schedule:\n    - cron: '1 1 * * *'\n  workflow_dispatch:\njobs:\n  live:\n    runs-on: x\n    steps:\n      - run: true\n";
+    none(run(
+        &[("ci.yml", GOOD), ("live.yml", sched)],
+        "gate\n",
+        ALLOW,
+    ));
+    has(
+        &run(&[("ci.yml", GOOD), ("other.yml", sched)], "gate\n", ALLOW),
+        "not in .github/one-gate-allow.txt",
+    );
+}
+
+#[test]
+fn an_allow_list_may_class_other_events_as_main() {
+    let allow = format!("{ALLOW}trigger page_build main\n");
+    has(
+        &run(
+            &[("ci.yml", GOOD), ("x.yml", &main_job("page_build"))],
+            "gate\n",
+            &allow,
+        ),
+        NOT_REQ,
+    );
+}
+
+#[test]
+fn pull_request_target_is_never_allowed() {
+    has(
+        &with_extra(&main_job("pull_request_target")),
+        "pull_request_target is never allowed",
+    );
+    let v = run(
+        &[("ci.yml", GOOD)],
+        "gate\n",
+        &format!("{ALLOW}trigger pull_request_target neutral\n"),
+    );
+    has(&v, "never allowed");
+}
+
+#[test]
+fn unreadable_allow_lists_fail_closed() {
+    for bad in [
+        "trigger\n",
+        "trigger push\n",
+        "trigger push sideways\n",
+        "trigger push neutral\n",
+        "trigger pull_request main\n",
+        "trigger workflow_call main\n",
+        "trigger release pr\n",
+        "remote\n",
+        "remote owner/repo/x.yml\n",
+        "remote owner/repo/x.yml@v1\n",
+        "remote owner/repo/x.yml name\n",
+        "if\n",
+        "if \n",
+        "ifx y\n",
+        "other thing\n",
+    ] {
+        let v = run(&[("ci.yml", GOOD)], "gate\n", bad);
+        has(&v, "one-gate-allow.txt line 1");
+    }
+    let v = run(
+        &[("ci.yml", GOOD)],
+        "gate\n",
+        "trigger push main\ntrigger bogus\n# c\n\n",
+    );
+    has(&v, "line 2");
+}
+
+#[test]
+fn conflicting_trigger_classes_fail_closed() {
+    let allow = format!("{ALLOW}trigger schedule main\n");
+    let sched = "on: schedule\njobs:\n  live:\n    runs-on: x\n    steps:\n      - run: true\n";
+    has(
+        &run(&[("ci.yml", GOOD), ("live.yml", sched)], "gate\n", &allow),
+        "conflicting classes",
+    );
+}
+
+// ---- rendered check names --------------------------------------------------------------------
+
+fn matrix_ci(strategy: &str, name: &str) -> String {
+    GOOD.replace(
+        "    name: gate\n",
+        &format!("{name}    strategy:\n{strategy}\n"),
+    )
+}
+
+#[test]
+fn matrix_names_are_rendered() {
+    let ci = matrix_ci(
+        "      matrix:\n        os: [a, b]\n        n: [one, two]",
+        "",
+    );
+    let req = "gate (a, one)\ngate (a, two)\ngate (b, one)\ngate (b, two)\n";
+    none(run(&[("ci.yml", &ci)], req, ALLOW));
+    let v = run(&[("ci.yml", &ci)], "gate (a, one)\n", ALLOW);
+    has(&v, "check name 'gate (b, two)', which is not in");
+    has(&only(&ci), "'gate' but no job renders");
+    let named = matrix_ci(
+        "      matrix:\n        os: [a, b]\n        fast: [fast]",
+        "    name: build ${{ matrix.os }} ${{ matrix.fast }}\n",
+    );
+    none(run(
+        &[("ci.yml", &named)],
+        "build a fast\nbuild b fast\n",
+        ALLOW,
+    ));
+    let plain = matrix_ci("      fail-fast: false", "");
+    none(only(&plain));
+    let no_matrix = matrix_ci("      fail-fast: false\n      matrix:\n        k: [x]", "");
+    none(run(&[("ci.yml", &no_matrix)], "gate (x)\n", ALLOW));
+}
+
+#[test]
+fn names_that_cannot_be_rendered_fail_closed() {
+    for ci in [
+        matrix_ci("      matrix:\n        include:\n          - a: 1", ""),
+        matrix_ci("      matrix:\n        a: [1]\n        exclude:\n          - a: 1", ""),
+        matrix_ci("      matrix: ${{ fromJSON(needs.x.outputs.m) }}", ""),
+        matrix_ci("      matrix: {}", ""),
+        matrix_ci("      matrix:\n        a: ${{ x }}", ""),
+        matrix_ci("      matrix:\n        a: []", ""),
+        matrix_ci("      matrix:\n        a: [[1]]", ""),
+        matrix_ci("      matrix:\n        a: ['${{ x }}']", ""),
+        matrix_ci("      matrix:\n        a: [~]", ""),
+        matrix_ci("      matrix:\n        1: [a]", ""),
+        matrix_ci("      matrix:\n        a: [1]", "    name: g ${{ github.run_id }}\n"),
+        matrix_ci("      matrix:\n        a: [1]", "    name: g ${{ matrix.zzz }}\n"),
+        GOOD.replace("name: gate", "name: ${{ matrix.a }}"),
+        GOOD.replace("    steps:", "    strategy: x\n    steps:"),
+        GOOD.replace("    steps:", "    strategy:\n      matrix:\n        a: [x]\n        b: [a1,a2,a3,a4,a5,a6,a7,a8,a9,b1,b2,b3,b4,b5,b6,b7,b8]\n        c: [a1,a2,a3,a4,a5,a6,a7,a8,a9,b1,b2,b3,b4,b5,b6,b7]\n    steps:"),
+    ] {
+        let v = run(&[("ci.yml", &ci)], "gate\n", ALLOW);
+        assert!(v.iter().any(|l| l.contains(CLOSED)), "{ci}\n{v:?}");
+    }
+}
+
+#[test]
+fn required_name_produced_by_a_non_pr_job() {
+    let y = "on: push\njobs:\n  second:\n    runs-on: x\n";
+    has(
+        &with_extra_req(y, "gate\nsecond\n"),
+        "no job renders that check name on pull_request",
+    );
+}
+
+// ---- reusable workflows ----------------------------------------------------------------------
+
+const CALLEE: &str = "on: workflow_call\njobs:\n  inner:\n    runs-on: x\n    steps:\n      - run: true\n  more:\n    name: more ${{ matrix.v }}\n    strategy:\n      matrix:\n        v: [one, two]\n    runs-on: x\n";
+
+fn caller(uses: &str) -> String {
+    format!(
+        "on:\n  push:\n  pull_request:\njobs:\n  call:\n    uses: {uses}\n  gate:\n    runs-on: x\n    steps:\n      - run: true\n"
+    )
+}
+
+const CALLED: &str = "./.github/workflows/callee.yml";
+const CALLED_NAMES: &str = "gate\ncall / inner\ncall / more one\ncall / more two\n";
+
+#[test]
+fn local_callees_render_caller_slash_inner() {
+    none(run(
+        &[("ci.yml", &caller(CALLED)), ("callee.yml", CALLEE)],
+        CALLED_NAMES,
+        ALLOW,
+    ));
+    let v = run(
+        &[("ci.yml", &caller(CALLED)), ("callee.yml", CALLEE)],
+        "gate\ncall / inner\n",
+        ALLOW,
+    );
+    has(&v, "check name 'call / more one', which is not in");
+    let v = run(
+        &[("ci.yml", &caller(CALLED)), ("callee.yml", CALLEE)],
+        "gate\ncall\ninner\n",
+        ALLOW,
+    );
+    has(&v, "'call' but no job renders");
+}
+
+#[test]
+fn callee_with_a_main_trigger_of_its_own_is_judged_standalone() {
+    let both = CALLEE.replace("on: workflow_call", "on: [workflow_call, push]");
+    let v = run(
+        &[("ci.yml", &caller(CALLED)), ("callee.yml", &both)],
+        CALLED_NAMES,
+        ALLOW,
+    );
+    has(&v, "callee.yml: job 'inner' runs on push to main");
+}
+
+#[test]
+fn callee_inner_jobs_carry_the_if_and_continue_on_error_rules() {
+    let iff = CALLEE.replace(
+        "    runs-on: x\n    steps:\n      - run: true\n  more",
+        "    if: github.head_ref == ''\n    runs-on: x\n    steps:\n      - run: true\n  more",
+    );
+    has(
+        &run(
+            &[("ci.yml", &caller(CALLED)), ("callee.yml", &iff)],
+            CALLED_NAMES,
+            ALLOW,
+        ),
+        IF_MSG,
+    );
+    let step_if = CALLEE.replace("- run: true", "- run: true\n        if: false");
+    has(
+        &run(
+            &[("ci.yml", &caller(CALLED)), ("callee.yml", &step_if)],
+            CALLED_NAMES,
+            ALLOW,
+        ),
+        IF_MSG,
+    );
+    let coe = CALLEE.replace("  inner:\n", "  inner:\n    continue-on-error: true\n");
+    has(
+        &run(
+            &[("ci.yml", &caller(CALLED)), ("callee.yml", &coe)],
+            CALLED_NAMES,
+            ALLOW,
+        ),
+        "continue-on-error",
+    );
+}
+
+#[test]
+fn callee_chains_are_followed() {
+    let mid = "on: workflow_call\njobs:\n  hop:\n    uses: ./.github/workflows/leaf.yml\n";
+    let leaf = "on: workflow_call\njobs:\n  deep:\n    continue-on-error: true\n    runs-on: x\n";
+    let v = run(
+        &[
+            ("ci.yml", &caller("./.github/workflows/mid.yml")),
+            ("mid.yml", mid),
+            ("leaf.yml", leaf),
+        ],
+        "gate\ncall / hop / deep\n",
+        ALLOW,
+    );
+    has(&v, "continue-on-error");
+}
+
+#[test]
+fn callee_problems_fail_closed() {
+    let no_call = CALLEE.replace("workflow_call", "workflow_dispatch");
+    let looped = "on: workflow_call\njobs:\n  again:\n    uses: ./.github/workflows/callee.yml\n";
+    for (uses, callee) in [
+        ("./.github/workflows/missing.yml", CALLEE),
+        ("./other/callee.yml", CALLEE),
+        ("./.github/workflows/../callee.yml", CALLEE),
+        (CALLED, no_call.as_str()),
+        (CALLED, "on: workflow_call\njobs: {}\n"),
+        (CALLED, "not yaml: ["),
+        (CALLED, looped),
+        ("owner/repo/.github/workflows/x.yml@v1", CALLEE),
+    ] {
+        let v = run(
+            &[("ci.yml", &caller(uses)), ("callee.yml", callee)],
+            "gate\n",
+            ALLOW,
+        );
+        has(&v, CLOSED);
+    }
+}
+
+#[test]
+fn remote_callee_only_when_pinned_by_exact_ref() {
+    let uses = "paiml/.github/.github/workflows/pr-gate.yml@abc123";
+    let allow = format!("{ALLOW}remote {uses} gate-inner other\n");
+    none(run(
+        &[("ci.yml", &caller(uses))],
+        "gate\ncall / gate-inner\ncall / other\n",
+        &allow,
+    ));
+    let v = run(
+        &[(
+            "ci.yml",
+            &caller("paiml/.github/.github/workflows/pr-gate.yml@main"),
+        )],
+        "gate\n",
+        &allow,
+    );
+    has(&v, "remote and not pinned");
+}
+
+// ---- round 4: what class of input was still accepted without being understood ---------------
+
+/// The aggregate may carry only the keys of its committed shape. Anything else (a shell that
+/// makes `exit 1` a no-op, defaults at any level, env, a container) is not understood: RED.
+#[test]
+fn aggregate_with_any_unlisted_key_is_red() {
+    let step = "      - if: needs.helper.result != 'success' || needs.lint.result != 'success'\n        run: exit 1\n";
+    let with_step_key = |k: &str| AGG.replace(step, &format!("{step}        {k}\n"));
+    let with_job_key = |k: &str| {
+        AGG.replace(
+            "    if: always()\n",
+            &format!("    if: always()\n    {k}\n"),
+        )
+    };
+    let mut bad = vec![
+        with_step_key("shell: 'true {0}'"),
+        with_step_key("env: {BASH_ENV: x}"),
+        with_step_key("working-directory: /"),
+        with_step_key("timeout-minutes: 1"),
+        with_job_key("defaults: {run: {shell: 'true {0}'}}"),
+        with_job_key("env: {A: b}"),
+        with_job_key("container: alpine"),
+        with_job_key("strategy: {fail-fast: false}"),
+        with_job_key("outputs: {a: b}"),
+        AGG.replace(
+            "jobs:\n",
+            "defaults:\n  run:\n    shell: 'true {0}'\njobs:\n",
+        ),
+        AGG.replace(
+            "jobs:\n",
+            "defaults:\n  run:\n    working-directory: x\njobs:\n",
+        ),
+    ];
+    bad.push(AGG.replace(step, &format!("      - uses: x/y@v1\n{step}")));
+    for y in bad {
+        let v = run(&[("ci.yml", &y)], "gate\n", ALLOW);
+        assert!(
+            v.iter().any(|l| l.contains("not the aggregate shape")
+                || l.contains(KEYS)
+                || l.contains("value entry")),
+            "{v:?}"
+        );
+    }
+    // The listed keys stay legitimate.
+    let ok = AGG
+        .replace(
+            "    if: always()\n",
+            "    if: always()\n    name: gate\n    timeout-minutes: 5\n",
+        )
+        .replace(
+            step,
+            &format!(
+                "      - name: fail\n{}",
+                step.replacen("      - if", "        if", 1)
+            ),
+        );
+    none(run(&[("ci.yml", &ok)], "gate\n", ALLOW));
+}
+
+/// A branch pattern is understood or refused: escapes, a `refs/` prefix and every character
+/// outside the glob alphabet are RED on both sides, never read literally.
+#[test]
+fn unknown_branch_pattern_syntax_is_red() {
+    for pat in [
+        "'ma\\in'",
+        "'refs/heads/main'",
+        "'{main,dev}'",
+        "'ma(in)'",
+        "'ma in'",
+        "'ma!in'",
+        "'${{ github.base_ref }}'",
+        "'mäin'",
+    ] {
+        has(&push_cfg(&format!("    branches: [{pat}]")), CLOSED);
+        has(&push_cfg(&format!("    branches-ignore: [{pat}]")), CLOSED);
+        has(
+            &push_cfg(&format!(
+                "    branches: ['**', '!{}']",
+                pat.trim_matches('\'')
+            )),
+            CLOSED,
+        );
+        has(&pr_cfg(&format!("    branches: [{pat}]")), CLOSED);
+    }
+}
+
+/// Check names collide when they fold together (trim, case, inner whitespace), and a required
+/// name must match its producer exactly.
+#[test]
+fn folded_check_names_collide() {
+    for n in ["Gate", "GATE"] {
+        let y = format!(
+            "on: pull_request\njobs:\n  shadow:\n    name: {n}\n    runs-on: x\n    steps:\n      - run: true\n"
+        );
+        has(&with_extra(&y), "is produced more than once");
+    }
+    for n in ["'gate '", "' gate'", "'ga  te'"] {
+        let y = format!(
+            "on: pull_request\njobs:\n  shadow:\n    name: {n}\n    runs-on: x\n    steps:\n      - run: true\n"
+        );
+        has(&with_extra(&y), "not a plain literal");
+    }
+    let ci = GOOD.replace("name: gate", "name: Gate");
+    has(
+        &run(&[("ci.yml", &ci)], "gate\n", ALLOW),
+        "no job renders that check name",
+    );
+}
+
+// ---- round 6: the narrow canonical form ----------------------------------------------------
+
+const FIXTURE_AGG_HELPER: &str = "on:\n  push:\n  pull_request:\n";
+
+/// Workflow-level env (BASH_ENV, PATH) can turn the aggregate's `exit 1` into a no-op, so a
+/// top-level `env` is RED unless its whole rendered value is byte-equal to an allow-list entry,
+/// and an aggregate in a workflow that has one is never the aggregate shape.
+#[test]
+fn workflow_level_env_is_red_unless_byte_listed() {
+    for env in [
+        "env:\n  BASH_ENV: '$(f=$(mktemp); echo \"exit 0\" > $f; echo $f)'\n",
+        "env:\n  PATH: /tmp/evil\n",
+        "env: {}\n",
+    ] {
+        let y = AGG
+            .replace("jobs:\n  helper:", &format!("{env}jobs:\n  helper:"))
+            .replace(
+                "runs-on: x\n    steps:\n      - run: true\n  lint",
+                "runs-on: x\n    steps:\n      - run: false\n  lint",
+            );
+        let v = run(&[("ci.yml", &y)], "gate\n", ALLOW);
+        has(&v, "not byte-equal to a value entry for workflow");
+    }
+    let y = AGG.replace("jobs:\n  helper:", "env:\n  A: b\njobs:\n  helper:");
+    let allow = format!("{ALLOW}value ci.yml workflow env {{\"A\":\"b\"}}\n");
+    let v = run(&[("ci.yml", &y)], "gate\n", &allow);
+    has(&v, "not the aggregate shape");
+    let allow = format!("{ALLOW}value ci.yml workflow env {{\"A\":\"c\"}}\n");
+    has(&run(&[("ci.yml", &y)], "gate\n", &allow), "value entry");
+    let allow = format!("{ALLOW}value other.yml workflow env {{\"A\":\"b\"}}\n");
+    has(&run(&[("ci.yml", &y)], "gate\n", &allow), "value entry");
+    let _ = FIXTURE_AGG_HELPER;
+}
+
+#[test]
+fn value_entries_are_byte_equal_per_file_scope_and_key() {
+    let ci = |extra: &str| GOOD.replace("jobs:\n", &format!("{extra}jobs:\n"));
+    let ok = |y: &str, entry: &str| none(only_allow(y, &format!("{ALLOW}{entry}\n")));
+    ok(
+        &ci("env: {A: b, C: 1, D: true, E: null, F: [x, 2]}\n"),
+        "value ci.yml workflow env {\"A\":\"b\",\"C\":1,\"D\":true,\"E\":null,\"F\":[\"x\",2]}",
+    );
+    ok(
+        &ci("run-name: hello\n"),
+        "value ci.yml workflow run-name \"hello\"",
+    );
+    ok(
+        &ci("defaults: {run: {shell: bash}}\n"),
+        "value ci.yml workflow defaults {\"run\":{\"shell\":\"bash\"}}",
+    );
+    let job_env = GOOD.replace("    runs-on:", "    env: {A: b}\n    runs-on:");
+    ok(&job_env, "value ci.yml job:gate env {\"A\":\"b\"}");
+    has(
+        &only(&job_env),
+        "not byte-equal to a value entry for job:gate",
+    );
+    let step_env = GOOD.replace(
+        "      - run: true",
+        "      - run: true\n        env: {A: b}",
+    );
+    ok(&step_env, "value ci.yml step:gate:0 env {\"A\":\"b\"}");
+    has(
+        &only(&step_env),
+        "not byte-equal to a value entry for step:gate:0",
+    );
+    has(
+        &only_allow(
+            &job_env,
+            &format!("{ALLOW}value ci.yml job:gate env {{\"A\":\"b\"}} \n"),
+        ),
+        "value entry",
+    );
+    for bad in [
+        "value ci.yml workflow",
+        "value ci.yml workflow env",
+        "value ci.yml workflow path x",
+        "filter ci.yml push branches yes",
+        "filter ci.yml push colour yes x",
+    ] {
+        has(
+            &only_allow(GOOD, &format!("{ALLOW}{bad}\n")),
+            "allow-list that cannot be read",
+        );
+    }
+}
+
+/// A key outside the committed lists is RED at workflow, job and step level of a gating workflow.
+#[test]
+fn keys_outside_the_allow_list_are_red() {
+    for (what, y) in [
+        ("top", GOOD.replace("jobs:\n", "x-extra: 1\njobs:\n")),
+        ("top", GOOD.replace("jobs:\n", "on-push: 1\njobs:\n")),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    container: alpine\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    services: {}\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    environment: prod\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    outputs: {a: b}\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    defaults: {}\n    runs-on:"),
+        ),
+        (
+            "step",
+            GOOD.replace(
+                "      - run: true",
+                "      - run: true\n        shell: 'true {0}'",
+            ),
+        ),
+        (
+            "step",
+            GOOD.replace(
+                "      - run: true",
+                "      - run: true\n        working-directory: /",
+            ),
+        ),
+        (
+            "step",
+            GOOD.replace(
+                "      - run: true",
+                "      - run: true\n        env: {A: b}",
+            ),
+        ),
+    ] {
+        let v = only(&y);
+        assert!(!v.is_empty(), "{what}: GREEN for {y}");
+    }
+    has(
+        &only(&GOOD.replace("    runs-on:", "    container: alpine\n    runs-on:")),
+        "key \"container\" is not in the committed key allow-list",
+    );
+    // A workflow that cannot gate keeps its job keys free; top-level keys are judged everywhere.
+    let lab = "on: workflow_dispatch\njobs:\n  l:\n    runs-on: x\n    container: alpine\n";
+    none(run(&[("ci.yml", GOOD), ("lab.yml", lab)], "gate\n", ALLOW));
+    let lab_top = "on: workflow_dispatch\nenv: {A: b}\njobs:\n  l:\n    runs-on: x\n";
+    has(
+        &run(&[("ci.yml", GOOD), ("lab.yml", lab_top)], "gate\n", ALLOW),
+        "value entry",
+    );
+}
+
+/// A custom tag anywhere (key, value, nested, sequence) is RED, and a tagged `defaults` key is
+/// no longer invisible to a `contains_key` test.
+#[test]
+fn tags_anywhere_are_red() {
+    for y in [
+        GOOD.replace(
+            "jobs:\n",
+            "!x defaults:\n  run:\n    shell: 'true {0}'\njobs:\n",
+        ),
+        GOOD.replace("name: CI", "name: !x CI"),
+        GOOD.replace("      - run: true", "      - !x\n        run: true"),
+        GOOD.replace(
+            "[self-hosted, clean-room, X64, ffmpeg]",
+            "[self-hosted, !x clean-room]",
+        ),
+        GOOD.replace("on:\n", "!x on:\n"),
+    ] {
+        let v = only(&y);
+        assert!(v.iter().any(|l| l.contains("custom tag")), "{y}\n{v:?}");
+    }
+    let aggregate_with_tagged_defaults = AGG.replace(
+        "jobs:\n  helper:",
+        "!x defaults:\n  run:\n    shell: 'true {0}'\njobs:\n  helper:",
+    );
+    has(
+        &run(
+            &[("ci.yml", &aggregate_with_tagged_defaults)],
+            "gate\n",
+            ALLOW,
+        ),
+        "custom tag",
+    );
+}
+
+/// Known limit, pinned: the parser resolves YAML core-schema tags (`!!str`) to the plain value
+/// before the check sees it, so they are not "custom tags"; every other tag is RED.
+#[test]
+fn core_schema_tags_are_resolved_by_the_parser() {
+    none(only(&GOOD.replace("name: gate", "name: !!str gate")));
+}
+
+/// Entries under .github/workflows that the check does not read are RED, not skipped.
+#[test]
+fn unread_directory_entries_are_red() {
+    let canon = "not a regular file named";
+    let push_only = main_job("push");
+    for name in [
+        ".yml",
+        ".yaml",
+        "x.yml ",
+        " x.yml",
+        "x .yml",
+        "X.yml",
+        "x.YML",
+        "x.yaml.bak",
+        "README.md",
+        "x",
+        "-x.yml",
+        ".x.yml",
+        "ä.yml",
+        "x\ty.yml",
+        "a/../b.yml",
+    ] {
+        if name.contains('/') {
+            continue;
+        }
+        let v = run(&[("ci.yml", GOOD), (name, &push_only)], "gate\n", ALLOW);
+        has(&v, canon);
+    }
+    has(
+        &run(
+            &[("ci.yml", GOOD), ("sub/x.yml", &push_only)],
+            "gate\n",
+            ALLOW,
+        ),
+        canon,
+    );
+    has(
+        &run(&[("ci.yml", GOOD), ("sub/.keep", "")], "gate\n", ALLOW),
+        canon,
+    );
+    for ok in ["a.yml", "a-b_c.1.yaml", "0.yml", "ci2.yml"] {
+        none(run(
+            &[
+                ("ci.yml", GOOD),
+                (ok, "on: workflow_dispatch\njobs:\n  l:\n    runs-on: x\n"),
+            ],
+            "gate\n",
+            ALLOW,
+        ));
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinks_and_non_utf8_names_are_red() {
+    use std::os::unix::ffi::OsStrExt;
+    let canon = "not a regular file named";
+    let root = tree(&[
+        (".github/workflows/ci.yml", GOOD),
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+        ("elsewhere/real.yml", &main_job("push")),
+    ]);
+    let wfs = root.join(".github/workflows");
+    std::os::unix::fs::symlink(root.join("elsewhere/real.yml"), wfs.join("link.yml")).unwrap();
+    has(&one_gate::check(&root), canon);
+    let root = tree(&[
+        (".github/workflows/ci.yml", GOOD),
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    let odd = std::ffi::OsStr::from_bytes(b"x\xff.yml");
+    std::fs::write(root.join(".github/workflows").join(odd), main_job("push")).unwrap();
+    has(&one_gate::check(&root), canon);
+}
+
+#[test]
+fn an_unreadable_workflow_file_is_red() {
+    let root = tree(&[
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    std::fs::create_dir_all(root.join(".github/workflows")).unwrap();
+    std::fs::write(root.join(".github/workflows/ci.yml"), b"on: \xff\xfe\n").unwrap();
+    has(&one_gate::check(&root), "fails closed");
+}
+
+#[test]
+fn a_missing_or_unlistable_workflows_directory_is_red() {
+    let root = tree(&[
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    let v = one_gate::check(&root);
+    has(&v, "workflows");
+    has(&v, "no workflow files");
+    let root = tree(&[
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+        (".github/workflows", "a file, not a directory"),
+    ]);
+    has(&one_gate::check(&root), "workflows");
+}
+
+#[test]
+fn callee_file_names_follow_the_same_form() {
+    let caller =
+        "on:\n  push:\n  pull_request:\njobs:\n  gate:\n    uses: ./.github/workflows/Callee.yml\n";
+    let v = run(
+        &[("ci.yml", caller), ("Callee.yml", CALLEE)],
+        "gate\n",
+        ALLOW,
+    );
+    has(&v, "canonical workflow file name");
+    let caller =
+        "on:\n  push:\n  pull_request:\njobs:\n  gate:\n    uses: ./.github/workflows/callee.yml\n";
+    let callee_env = "on: workflow_call\nenv: {A: b}\njobs:\n  inner:\n    runs-on: x\n    steps:\n      - run: true\n";
+    has(
+        &run(
+            &[("ci.yml", caller), ("callee.yml", callee_env)],
+            "gate\n",
+            ALLOW,
+        ),
+        "value entry",
+    );
+    let callee_job_key = "on: workflow_call\njobs:\n  inner:\n    container: x\n    runs-on: x\n    steps:\n      - run: true\n";
+    has(
+        &run(
+            &[("ci.yml", caller), ("callee.yml", callee_job_key)],
+            "gate\n",
+            ALLOW,
+        ),
+        "key allow-list",
+    );
+}
+
+// ---- round 8: a rendered check name is a closed set, never empty ------------------------------
+
+fn pr_only(job_body: &str) -> String {
+    format!("on:\n  pull_request:\n    branches: [main]\njobs:\n  gate:\n{job_body}    runs-on: x\n    steps:\n      - run: \"true\"\n")
+}
+
+fn refused_name(extra: &str) {
+    let v = with_extra(extra);
+    assert!(v.iter().any(|l| l.contains(CLOSED)), "{extra}\n{v:?}");
+    assert!(
+        v.iter().any(|l| l.contains("not a plain literal")),
+        "{extra}\n{v:?}"
+    );
+}
+
+#[test]
+fn empty_job_name_is_refused() {
+    refused_name(&pr_only("    name: \"\"\n"));
+}
+
+#[test]
+fn blank_job_name_is_refused() {
+    refused_name(&pr_only("    name: \" \"\n"));
+}
+
+#[test]
+fn matrix_rendered_empty_name_is_refused() {
+    let v = with_extra(&pr_only(
+        "    name: ${{ matrix.x }}\n    strategy:\n      matrix:\n        x: [\"\"]\n",
+    ));
+    assert!(v.iter().any(|l| l.contains(CLOSED)), "{v:?}");
+    assert!(v.iter().any(|l| l.contains("not a plain word")), "{v:?}");
+}
+
+#[test]
+fn rendered_names_are_a_closed_set() {
+    for name in [
+        "\"g\u{430}te\"",  // Cyrillic a
+        "\"gate\\u200b\"", // zero-width space
+        "\"gate $\"",      // a lone dollar
+        "\"a | b\"",       // a pipe
+        "\"gate\\t\"",     // tab
+        "\" gate\"",       // edge space
+        "\"a  b\"",        // doubled space
+        "\"gate\\u00a0\"", // no-break space
+        "\"a:b\"",         // colon
+        "\"gate\\nx\"",    // newline
+    ] {
+        let y = format!("on: pull_request\njobs:\n  x:\n    name: {name}\n    runs-on: x\n");
+        let v = with_extra(&y);
+        assert!(v.iter().any(|l| l.contains(CLOSED)), "{name}\n{v:?}");
+    }
+}
+
+#[test]
+fn job_ids_are_a_closed_set() {
+    for id in ["\"my job\"", "\"a.b\"", "\"\"", "\"g\u{430}te\""] {
+        let y = format!("on: pull_request\njobs:\n  {id}:\n    runs-on: x\n");
+        let v = with_extra(&y);
+        assert!(v.iter().any(|l| l.contains(CLOSED)), "{id}\n{v:?}");
+    }
+}
+
+#[test]
+fn a_caller_name_that_renders_empty_is_refused() {
+    let caller =
+        "on: pull_request\njobs:\n  c:\n    name: \"\"\n    uses: ./.github/workflows/callee.yml\n";
+    let v = run(
+        &[
+            ("ci.yml", GOOD),
+            ("extra.yml", caller),
+            ("callee.yml", CALLEE),
+        ],
+        "gate\n",
+        ALLOW,
+    );
+    has(&v, "not a plain literal");
+}
+
+#[test]
+fn matrix_values_must_be_plain_words() {
+    for val in [
+        "0x10", "1.50", "1e3", "010", "true", "1", "null", "yes", "'0x10'", "'1.50'", "'1'",
+        "'yes'", "'On'", "'a b'", "'a:b'", "\"\"", "'-x'", "'.x'", "'a$'", "'\u{e9}'", "inf", "~",
+    ] {
+        let ci = matrix_ci(
+            &format!("      matrix:\n        a: [{val}]"),
+            "    name: g ${{ matrix.a }}\n",
+        );
+        let v = run(&[("ci.yml", &ci)], "g x\n", ALLOW);
+        assert!(v.iter().any(|l| l.contains(CLOSED)), "{val}\n{v:?}");
+    }
+    let ok = matrix_ci(
+        "      matrix:\n        a: [ubuntu-22.04, Rust_stable, e3]",
+        "    name: g ${{ matrix.a }}\n",
+    );
+    none(run(
+        &[("ci.yml", &ok)],
+        "g ubuntu-22.04\ng Rust_stable\ng e3\n",
+        ALLOW,
+    ));
+}
+
+// ---- round 9: a matrix job's name must be computable; the required list is a closed set --------
+
+const MAIN_LINT: &str = "name: M\non:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\njobs:\n  real:\n    name: lint (a)\n    runs-on: x\n    steps:\n      - run: make lint\n";
+
+fn refused_matrix_name(job: &str) {
+    let v = run(
+        &[("m.yml", MAIN_LINT), ("p.yml", &pr_only_job(job))],
+        "lint (a)\n",
+        ALLOW,
+    );
+    assert!(v.iter().any(|l| l.contains(CLOSED)), "{job}\n{v:?}");
+    assert!(
+        v.iter()
+            .any(|l| l.contains("does not reference matrix key")),
+        "{job}\n{v:?}"
+    );
+}
+
+fn pr_only_job(job: &str) -> String {
+    format!("on:\n  pull_request:\n    branches: [main]\njobs:\n  shadow:\n{job}    runs-on: x\n    steps:\n      - run: \"true\"\n")
+}
+
+/// Round 8 plant: `lint` over `x: [a]` is `lint (a)` on GitHub, shadowing the real `lint (a)`.
+#[test]
+fn bare_custom_name_over_a_matrix_is_refused() {
+    refused_matrix_name("    name: lint\n    strategy:\n      matrix:\n        x: [a]\n");
+}
+
+#[test]
+fn custom_name_must_reference_every_matrix_key() {
+    refused_matrix_name(
+        "    name: lint ${{ matrix.x }}\n    strategy:\n      matrix:\n        x: [a]\n        y: [b]\n",
+    );
+    refused_matrix_name(
+        "    name: lint\n    strategy:\n      matrix:\n        x: [a]\n        y: [b]\n",
+    );
+}
+
+#[test]
+fn a_caller_name_over_a_matrix_must_reference_it() {
+    let caller = "on: pull_request\njobs:\n  c:\n    name: c\n    strategy:\n      matrix:\n        k: [x]\n    uses: ./.github/workflows/callee.yml\n";
+    let v = run(
+        &[
+            ("ci.yml", GOOD),
+            ("extra.yml", caller),
+            ("callee.yml", CALLEE),
+        ],
+        "gate\n",
+        ALLOW,
+    );
+    has(&v, "does not reference matrix key 'k'");
+}
+
+#[test]
+fn required_list_lines_are_plain_names_byte_for_byte() {
+    for req in [
+        "gate\t\n",
+        " gate\n",
+        "gate \n",
+        "gate\r\n",
+        "gate\n gate\n",
+        "gate\n \n",
+        "gate\n gate # c\n",
+        "gate\ngate\n",
+        "gate\n\u{e9}\n",
+        "gate # note\n",
+        "gate\n  # indented comment\n",
+    ] {
+        let v = run(&[("ci.yml", GOOD)], req, ALLOW);
+        assert!(
+            v.iter()
+                .any(|l| l.contains("required-status-checks.txt line")),
+            "{req:?}\n{v:?}"
+        );
+    }
+    none(run(&[("ci.yml", GOOD)], "# comment\n\ngate\n", ALLOW));
+}

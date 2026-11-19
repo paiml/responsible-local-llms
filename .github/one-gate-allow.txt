@@ -1,0 +1,25 @@
+# ONE GATE allow-list (operator ruling 2026-11-19). crates/one-gate reads this file; anything
+# it does not find here is RED. Grammar: crates/one-gate/src/allow.rs.
+#
+# THIS FILE IS PART OF THE GATE. An edit to it (or to .github/required-status-checks.txt) is a GATE
+# CHANGE: it needs a sign-off round from a session that is not the author, bound to the final
+# commit, plus two non-author reviews and green CI. Every line below widens what the check accepts.
+#
+# Beyond triggers, the check accepts only a narrow canonical form: workflow files named
+# [a-z0-9][a-z0-9._-]*.yml|.yaml, one YAML document, no custom tag, no merge key, allow-listed
+# keys at workflow, job and step level, and no pattern matching at all. Anything else needs a
+# byte-equal entry here, or the check is RED:
+#   value <file> <workflow|job:ID|step:ID:N> <env|defaults|run-name> <rendered value>
+#   filter <file> <event> <branches|branches-ignore|tags|tags-ignore|paths|paths-ignore|types> <yes|no> <entry>
+# Today the real workflows need neither: no entry of those two kinds exists.
+#
+# Trigger classes. main: can run on main's commits. pr: pull_request. neutral: never gates.
+trigger push main
+trigger workflow_run main
+trigger merge_group main
+trigger pull_request pr
+trigger workflow_dispatch neutral
+trigger workflow_call neutral
+# live.yml is LAB (nightly, cannot block a merge or a release); the schedule is neutral there only.
+trigger schedule neutral live.yml
+# No remote reusable workflow and no job or step `if` is allowed today.
