@@ -2,6 +2,7 @@
 //! its trigger classes and every job with its RENDERED check names.
 
 use crate::allow::{Allow, Class};
+use crate::canon;
 use regex::Regex;
 use serde_yaml_ng::{Mapping, Value};
 use std::collections::BTreeMap;
@@ -82,6 +83,14 @@ impl<'a> Cx<'a> {
     }
 }
 
+fn refuse(v: Vec<String>) -> Result<(), String> {
+    if v.is_empty() {
+        Ok(())
+    } else {
+        Err(v.join("; "))
+    }
+}
+
 fn str_list(v: &Value) -> Option<Vec<String>> {
     match v {
         Value::String(s) => Some(vec![s.clone()]),
@@ -90,115 +99,60 @@ fn str_list(v: &Value) -> Option<Vec<String>> {
     }
 }
 
-/// GitHub branch glob to an anchored regex: `**` any, `*` no slash, `?` and `+` repeat the
-/// previous atom, `[..]` a class.
-fn glob_matches(pat: &str, text: &str) -> Result<bool, String> {
-    // Allow-list of what a pattern may contain; GitHub's escape and ref-prefix handling is not
-    // measured, so a backslash, a `refs/` prefix or any other character is refused, not read literally.
-    if pat.starts_with("refs/")
-        || !pat
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "-_./*?+[]".contains(c))
-    {
-        return Err(format!("branch pattern '{pat}' is not understood"));
-    }
-    let mut re = String::from("^");
-    let mut it = pat.chars().peekable();
-    while let Some(c) = it.next() {
-        match c {
-            '*' if it.peek() == Some(&'*') => {
-                it.next();
-                re.push_str(".*");
-            }
-            '*' => re.push_str("[^/]*"),
-            '?' | '+' | '[' | ']' => re.push(c),
-            _ => re.push_str(&regex::escape(&c.to_string())),
-        }
-    }
-    re.push('$');
-    Regex::new(&re)
-        .map(|r| r.is_match(text))
-        .map_err(|e| format!("branch pattern '{pat}' is not understood: {e}"))
+use canon::Filters;
+
+fn class_of<'a>(f: &'a Filters, key: &str) -> Option<&'a Vec<(String, bool)>> {
+    f.iter().find(|(k, _)| k == key).map(|(_, v)| v)
 }
 
-fn patterns(m: &Mapping, key: &str) -> Result<Option<Vec<String>>, String> {
-    match m.get(key) {
-        None => Ok(None),
-        Some(v) => match str_list(v) {
-            Some(p) if !p.is_empty() => Ok(Some(p)),
-            _ => Err(format!(
-                "'{key}' is not a non-empty string or list of strings"
-            )),
+/// Does this `push` config run on pushes to main? Entries are never matched: each was stated
+/// by hand in the allow-list (the literal `main` under `branches` excepted).
+fn push_main(file: &str, cfg: &Value, allow: &Allow) -> Result<bool, String> {
+    let f = canon::filters(file, "push", cfg, allow)?;
+    let (branches, ignore) = (class_of(&f, "branches"), class_of(&f, "branches-ignore"));
+    if class_of(&f, "types").is_some() {
+        return Err("'push' has 'types'".to_owned());
+    }
+    Ok(match (branches, ignore) {
+        (Some(_), Some(_)) => {
+            return Err("both 'branches' and 'branches-ignore' are set".to_owned())
+        }
+        (Some(b), None) => b.iter().any(|(_, c)| *c),
+        (None, Some(i)) => i.iter().all(|(_, c)| *c),
+        (None, None) => match (class_of(&f, "tags"), class_of(&f, "tags-ignore")) {
+            (Some(t), _) => t.iter().any(|(_, c)| *c),
+            (None, Some(t)) => t.iter().all(|(_, c)| *c),
+            (None, None) => true,
         },
-    }
-}
-
-/// Patterns are applied in order: a plain one selects `main`, a `!` one deselects it.
-fn selected(pats: &[String]) -> Result<bool, String> {
-    let mut hit = false;
-    for pat in pats {
-        match pat.strip_prefix('!') {
-            Some(neg) => hit = hit && !glob_matches(neg, "main")?,
-            None => hit = hit || glob_matches(pat, "main")?,
-        }
-    }
-    Ok(hit)
-}
-
-fn ignored(pats: &[String]) -> Result<bool, String> {
-    for pat in pats {
-        if glob_matches(pat, "main")? {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-/// Does this event config (the value under `push` or `pull_request`) cover branch `main`?
-fn covers_main(cfg: &Value) -> Result<bool, String> {
-    let m = match cfg {
-        Value::Null => return Ok(true),
-        Value::Mapping(m) => m,
-        _ => return Err("event config is not a mapping".to_owned()),
-    };
-    match (patterns(m, "branches")?, patterns(m, "branches-ignore")?) {
-        (Some(_), Some(_)) => Err("both 'branches' and 'branches-ignore' are set".to_owned()),
-        (Some(p), None) => selected(&p),
-        (None, Some(p)) => ignored(&p).map(|i| !i),
-        (None, None) => Ok(true),
-    }
-}
-
-/// A pull_request trigger counts only if it covers main, has no path filter (a required check
-/// that a path filter skips never reports) and its types include the default three.
-fn pr_counts(cfg: &Value) -> Result<bool, String> {
-    if !covers_main(cfg)? {
-        return Ok(false);
-    }
-    let Some(m) = cfg.as_mapping() else {
-        return Ok(true);
-    };
-    if m.contains_key("paths") || m.contains_key("paths-ignore") {
-        return Ok(false);
-    }
-    Ok(match patterns(m, "types")? {
-        None => true,
-        Some(t) => ["opened", "synchronize", "reopened"]
-            .iter()
-            .all(|d| t.iter().any(|x| x == d)),
     })
 }
 
-fn find_on(top: &Mapping) -> Result<&Value, String> {
-    let mut found = top
-        .iter()
-        .filter(|(k, _)| k.as_str() == Some("on") || **k == Value::Bool(true))
-        .map(|(_, v)| v);
-    match (found.next(), found.next()) {
-        (Some(v), None) => Ok(v),
-        (None, _) => Err("has no 'on' key".to_owned()),
-        _ => Err("has more than one 'on' key".to_owned()),
+/// A pull_request trigger counts only when it provably runs on every PR to main: each filter
+/// entry byte-equal to an allow-list entry whose hand-stated class is yes, and `types` covering
+/// the default three.
+fn pr_counts(file: &str, cfg: &Value, allow: &Allow) -> Result<bool, String> {
+    let f = canon::filters(file, "pull_request", cfg, allow)?;
+    if class_of(&f, "tags").is_some() || class_of(&f, "tags-ignore").is_some() {
+        return Err("'pull_request' has 'tags'".to_owned());
     }
+    if class_of(&f, "branches").is_some() && class_of(&f, "branches-ignore").is_some() {
+        return Err("both 'branches' and 'branches-ignore' are set".to_owned());
+    }
+    let mut counts = true;
+    for (key, entries) in &f {
+        counts &= match key.as_str() {
+            "branches" => entries.iter().any(|(_, c)| *c),
+            "types" => ["opened", "synchronize", "reopened"]
+                .iter()
+                .all(|d| entries.iter().any(|(e, _)| e == d)),
+            _ => entries.iter().all(|(_, c)| *c),
+        };
+    }
+    Ok(counts)
+}
+
+fn find_on(top: &Mapping) -> Result<&Value, String> {
+    top.get("on").ok_or_else(|| "has no 'on' key".to_owned())
 }
 
 fn triggers(on: &Value) -> Result<BTreeMap<String, Value>, String> {
@@ -350,8 +304,15 @@ fn resolve_uses(uses: &str, cx: &Cx) -> Result<Vec<Inner>, String> {
             "reusable workflow '{uses}' nests too deep or loops"
         ));
     }
+    let file = rel.trim_start_matches(".github/workflows/");
+    if !canon::valid_name(file) {
+        return Err(format!(
+            "reusable workflow '{uses}' is not a canonical workflow file name"
+        ));
+    }
     let text = std::fs::read_to_string(cx.root.join(rel)).map_err(|e| format!("{uses}: {e}"))?;
     let top = parse_doc(&text)?;
+    refuse(canon::top_keys(file, &top, cx.allow))?;
     if !triggers(find_on(&top)?)?.contains_key("workflow_call") {
         return Err(format!(
             "reusable workflow '{uses}' has no workflow_call trigger"
@@ -364,7 +325,7 @@ fn resolve_uses(uses: &str, cx: &Cx) -> Result<Vec<Inner>, String> {
         stack: cx.stack.clone(),
     };
     inner_cx.stack.push(rel.to_owned());
-    let jobs = parse_jobs(&top, &inner_cx)?;
+    let jobs = parse_jobs(&top, &inner_cx, file, true)?;
     Ok(jobs
         .iter()
         .flat_map(|j| {
@@ -400,10 +361,14 @@ fn parse_steps(m: &Mapping, id: &str) -> Result<(Vec<Step>, bool), String> {
     Ok((steps, third))
 }
 
-fn parse_job(id: &str, v: &Value, cx: &Cx, top_defaults: bool) -> Result<Job, String> {
+fn parse_job(id: &str, v: &Value, cx: &Cx, ctx: (&str, bool, bool)) -> Result<Job, String> {
+    let (file, strict, top_extra) = ctx;
     let m = v
         .as_mapping()
         .ok_or_else(|| format!("job '{id}' is not a mapping"))?;
+    if strict {
+        refuse(canon::job_keys(file, id, m, cx.allow))?;
+    }
     let mut names = render_names(id, m)?;
     let needs = match m.get("needs") {
         None => Vec::new(),
@@ -426,7 +391,7 @@ fn parse_job(id: &str, v: &Value, cx: &Cx, top_defaults: bool) -> Result<Job, St
     }
     Ok(Job {
         id: id.to_owned(),
-        plain: only_keys(m, AGG_JOB_KEYS) && !top_defaults,
+        plain: only_keys(m, AGG_JOB_KEYS) && !top_extra,
         names,
         needs,
         cond: m.get("if").map(|c| c.as_str().map(str::to_owned)),
@@ -436,7 +401,7 @@ fn parse_job(id: &str, v: &Value, cx: &Cx, top_defaults: bool) -> Result<Job, St
     })
 }
 
-fn parse_jobs(top: &Mapping, cx: &Cx) -> Result<Vec<Job>, String> {
+fn parse_jobs(top: &Mapping, cx: &Cx, file: &str, strict: bool) -> Result<Vec<Job>, String> {
     let jobs = top
         .get("jobs")
         .and_then(Value::as_mapping)
@@ -445,14 +410,15 @@ fn parse_jobs(top: &Mapping, cx: &Cx) -> Result<Vec<Job>, String> {
     let mut out = Vec::new();
     for (k, v) in jobs {
         let id = k.as_str().ok_or("a job id is not a string")?;
-        out.push(parse_job(id, v, cx, top.contains_key("defaults"))?);
+        let extra = ["env", "defaults"].iter().any(|k| top.contains_key(*k));
+        out.push(parse_job(id, v, cx, (file, strict, extra))?);
     }
     Ok(out)
 }
 
 fn parse_doc(text: &str) -> Result<Mapping, String> {
-    let mut doc: Value = serde_yaml_ng::from_str(text).map_err(|e| e.to_string())?;
-    doc.apply_merge().map_err(|e| e.to_string())?;
+    let doc: Value = serde_yaml_ng::from_str(text).map_err(|e| e.to_string())?;
+    canon::plain_yaml(&doc)?;
     doc.as_mapping()
         .cloned()
         .ok_or_else(|| "top level is not a mapping".to_owned())
@@ -460,6 +426,7 @@ fn parse_doc(text: &str) -> Result<Mapping, String> {
 
 pub fn parse(cx: &Cx, file: &str, text: &str) -> Result<Workflow, String> {
     let top = parse_doc(text)?;
+    refuse(canon::top_keys(file, &top, cx.allow))?;
     let trig = triggers(find_on(&top)?)?;
     let (mut main_side, mut pr_side, mut standalone) = (false, false, false);
     for (event, cfg) in &trig {
@@ -467,9 +434,9 @@ pub fn parse(cx: &Cx, file: &str, text: &str) -> Result<Workflow, String> {
             return Err("pull_request_target is never allowed".to_owned());
         }
         match cx.allow.class_of(event, file)? {
-            Class::Main if event == "push" => main_side |= covers_main(cfg)?,
+            Class::Main if event == "push" => main_side |= push_main(file, cfg, cx.allow)?,
             Class::Main => main_side = true,
-            Class::Pr => pr_side = pr_counts(cfg)?,
+            Class::Pr => pr_side = pr_counts(file, cfg, cx.allow)?,
             Class::Neutral => {}
         }
         standalone |= event != "workflow_call";
@@ -479,6 +446,6 @@ pub fn parse(cx: &Cx, file: &str, text: &str) -> Result<Workflow, String> {
         main_side,
         pr_side,
         standalone,
-        jobs: parse_jobs(&top, cx)?,
+        jobs: parse_jobs(&top, cx, file, main_side || pr_side)?,
     })
 }

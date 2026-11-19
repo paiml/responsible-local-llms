@@ -70,7 +70,11 @@ fn with_extra_req(extra: &str, required: &str) -> Vec<String> {
 
 /// One ci.yml, required list `gate`.
 fn only(ci: &str) -> Vec<String> {
-    run(&[("ci.yml", ci)], "gate\n", ALLOW)
+    only_allow(ci, ALLOW)
+}
+
+fn only_allow(ci: &str, allow: &str) -> Vec<String> {
+    run(&[("ci.yml", ci)], "gate\n", allow)
 }
 
 fn has(v: &[String], needle: &str) {
@@ -90,6 +94,7 @@ fn main_job(on: &str) -> String {
 
 const NOT_REQ: &str = "is not in .github/required-status-checks.txt";
 const CLOSED: &str = "fails closed";
+const KEYS: &str = "key allow-list";
 const IF_MSG: &str = "'if' that is not byte-equal";
 
 // ---- positive ------------------------------------------------------------------------------
@@ -107,14 +112,18 @@ fn this_repository_passes() {
 
 #[test]
 fn uppercase_extension_is_read() {
-    none(run(&[("ci.YML", GOOD)], "gate\n", ALLOW));
+    let canon = "not a regular file named";
+    has(
+        &run(&[("ci.yml", GOOD), ("ci2.YML", GOOD)], "gate\n", ALLOW),
+        canon,
+    );
     has(
         &run(
             &[("ci.yml", GOOD), ("x.YAML", &main_job("push"))],
             "gate\n",
             ALLOW,
         ),
-        NOT_REQ,
+        canon,
     );
 }
 
@@ -140,7 +149,7 @@ fn double_quoted_on_scalar() {
 fn yaml_11_boolean_true_key_is_on() {
     has(
         &with_extra(&main_job("{push: }").replace("on:", "true:")),
-        NOT_REQ,
+        KEYS,
     );
 }
 
@@ -155,6 +164,9 @@ fn flow_mapping_triggers() {
 #[test]
 fn alias_triggers() {
     let y = "t: &t\n  push:\n    branches: [main]\non: *t\njobs:\n  sneaky:\n    runs-on: x\n";
+    has(&with_extra(y), KEYS);
+    // An alias inside an allowed key still resolves, and the trigger is judged as written.
+    let y = "on: &t\n  push:\n    branches: [main]\npermissions: *t\njobs:\n  sneaky:\n    runs-on: x\n";
     has(&with_extra(y), NOT_REQ);
 }
 
@@ -232,7 +244,9 @@ fn step_level_if_on_a_main_job_needs_an_allow_entry() {
 #[test]
 fn pull_request_branches_ignore_main_is_no_pr_check() {
     let y = "on:\n  push:\n    branches: [main]\n  pull_request:\n    branches-ignore: [main]\njobs:\n  gate:\n    runs-on: x\n";
-    let v = with_extra(y);
+    has(&with_extra(y), "not byte-equal to a filter entry");
+    let allow = format!("{ALLOW}filter extra.yml pull_request branches-ignore no main\n");
+    let v = run(&[("ci.yml", GOOD), ("extra.yml", y)], "gate\n", &allow);
     has(&v, "no pull_request trigger that covers main");
     has(&v, "'gate' is produced more than once");
 }
@@ -291,9 +305,7 @@ fn push_cfg(cfg: &str) -> Vec<String> {
 
 #[test]
 fn push_branch_filters() {
-    for hit in [
-        "    branches: [main]",
-        "    branches: main",
+    for pat in [
         "    branches: ['**']",
         "    branches: [m*]",
         "    branches: [mai?n]",
@@ -301,28 +313,117 @@ fn push_branch_filters() {
         "    branches: ['[mn]ain']",
         "    branches: ['**', '!release']",
         "    branches: [release, main]",
-        "    branches-ignore: [release]",
-        "    paths: [src]",
-    ] {
-        has(&push_cfg(hit), NOT_REQ);
-    }
-    for miss in [
         "    branches: [release/*]",
-        "    branches: ['**', '!main']",
         "    branches: ['!main']",
+        "    branches-ignore: [release]",
         "    branches-ignore: [main]",
-        "    branches-ignore: ['**']",
+        "    paths: [src]",
+        "    tags: [v*]",
     ] {
-        none(push_cfg(miss));
+        has(&push_cfg(pat), "not byte-equal to a filter entry");
     }
+    // The literal main is the only entry understood without a hand-written class.
+    has(&push_cfg("    branches: [main]"), NOT_REQ);
+    has(&push_cfg("    branches: main"), NOT_REQ);
+    // Allow-listed entries: byte equality and the hand-stated class decide, never the pattern.
+    let with = |entries: &str, cfg: &str| {
+        let allow = format!("{ALLOW}{entries}");
+        let y = format!("on:\n  push:\n{cfg}\njobs:\n  sneaky:\n    runs-on: x\n");
+        run(&[("ci.yml", GOOD), ("extra.yml", &y)], "gate\n", &allow)
+    };
+    none(with(
+        "filter extra.yml push branches no release/*\n",
+        "    branches: [release/*]",
+    ));
+    has(
+        &with(
+            "filter extra.yml push branches no release/*\n",
+            "    branches: [release/**]",
+        ),
+        "byte-equal",
+    );
+    has(
+        &with(
+            "filter other.yml push branches no release/*\n",
+            "    branches: [release/*]",
+        ),
+        "byte-equal",
+    );
+    has(
+        &with(
+            "filter extra.yml pull_request branches no release/*\n",
+            "    branches: [release/*]",
+        ),
+        "byte-equal",
+    );
+    has(
+        &with(
+            "filter extra.yml push branches yes **\n",
+            "    branches: ['**']",
+        ),
+        NOT_REQ,
+    );
+    has(
+        &with(
+            "filter extra.yml push branches-ignore yes release\n",
+            "    branches-ignore: [release]",
+        ),
+        NOT_REQ,
+    );
+    none(with(
+        "filter extra.yml push branches-ignore no main\n",
+        "    branches-ignore: [main]",
+    ));
+    none(with("filter extra.yml push tags no v*\n", "    tags: [v*]"));
+    has(
+        &with("filter extra.yml push tags yes v*\n", "    tags: [v*]"),
+        NOT_REQ,
+    );
+    has(
+        &with(
+            "filter extra.yml push tags-ignore yes v*\n",
+            "    tags-ignore: [v*]",
+        ),
+        NOT_REQ,
+    );
+    none(with(
+        "filter extra.yml push tags-ignore no v*\n",
+        "    tags-ignore: [v*]",
+    ));
+    has(
+        &with("filter extra.yml push paths yes src\n", "    paths: [src]"),
+        NOT_REQ,
+    );
+    has(
+        &with(
+            "filter extra.yml push branches yes dev\nfilter extra.yml push branches-ignore no x\n",
+            "    branches: [dev]\n    branches-ignore: [x]",
+        ),
+        CLOSED,
+    );
+    has(
+        &with(
+            "filter extra.yml push types yes opened\n",
+            "    types: [opened]",
+        ),
+        CLOSED,
+    );
     for bad in [
-        "    branches: [main]\n    branches-ignore: [x]",
         "    branches: []",
         "    branches: 5",
-        "    branches: ['[']",
+        "    branches: [5]",
+        "    colour: [red]",
+        "    branches: [main]\n    branches-ignore: [x]",
     ] {
         has(&push_cfg(bad), CLOSED);
     }
+    has(
+        &with(
+            "filter extra.yml push branches maybe x\n",
+            "    branches: [x]",
+        ),
+        "allow-list that cannot be read",
+    );
 }
 
 fn pr_cfg(cfg: &str) -> Vec<String> {
@@ -334,22 +435,88 @@ fn pr_cfg(cfg: &str) -> Vec<String> {
 
 #[test]
 fn pull_request_filters() {
-    for ok in [
-        "    branches: [main]",
+    none(pr_cfg("    branches: [main]"));
+    for unlisted in [
         "    types: [opened, synchronize, reopened, labeled]",
         "    branches-ignore: [release]",
-    ] {
-        none(pr_cfg(ok));
-    }
-    for narrow in [
         "    branches: [release]",
         "    branches-ignore: [main]",
         "    paths: [src/**]",
         "    paths-ignore: [docs/**]",
         "    types: [opened]",
     ] {
-        has(&pr_cfg(narrow), "no pull_request trigger that covers main");
+        has(&pr_cfg(unlisted), "not byte-equal to a filter entry");
     }
+    let with = |entries: &str, cfg: &str| {
+        let allow = format!("{ALLOW}{entries}");
+        only_allow(
+            &GOOD.replace(
+                "  pull_request:\n    branches: [main]\n",
+                &format!("  pull_request:\n{cfg}\n"),
+            ),
+            &allow,
+        )
+    };
+    none(with("filter ci.yml pull_request types yes opened\nfilter ci.yml pull_request types yes synchronize\nfilter ci.yml pull_request types yes reopened\nfilter ci.yml pull_request types yes labeled\n", "    types: [opened, synchronize, reopened, labeled]"));
+    has(
+        &with(
+            "filter ci.yml pull_request types yes opened\n",
+            "    types: [opened]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    none(with(
+        "filter ci.yml pull_request branches-ignore yes release\n",
+        "    branches-ignore: [release]",
+    ));
+    none(with(
+        "filter ci.yml pull_request branches yes release\n",
+        "    branches: [release, main]",
+    ));
+    has(
+        &with(
+            "filter ci.yml pull_request branches no release\n",
+            "    branches: [release]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    has(
+        &with(
+            "filter ci.yml pull_request branches-ignore no main\n",
+            "    branches-ignore: [main]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    has(
+        &with(
+            "filter ci.yml pull_request paths no src/**\n",
+            "    paths: [src/**]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    none(with(
+        "filter ci.yml pull_request paths yes src/**\n",
+        "    paths: [src/**]",
+    ));
+    has(
+        &with(
+            "filter ci.yml pull_request paths-ignore no docs/**\n",
+            "    paths-ignore: [docs/**]",
+        ),
+        "no pull_request trigger that covers main",
+    );
+    has(
+        &with("filter ci.yml pull_request tags yes v1\n", "    tags: [v1]"),
+        CLOSED,
+    );
+    has(
+        &with(
+            "filter ci.yml pull_request tags-ignore yes v1\n",
+            "    tags-ignore: [v1]",
+        ),
+        CLOSED,
+    );
+    has(&with("filter ci.yml pull_request branches yes a\nfilter ci.yml pull_request branches-ignore yes b\n", "    branches: [a]\n    branches-ignore: [b]"), CLOSED);
     none(only(&GOOD.replace(
         "  pull_request:\n    branches: [main]\n",
         "  pull_request:\n",
@@ -387,7 +554,9 @@ fn continue_on_error_on_a_pr_only_required_job() {
 #[test]
 fn merge_keys_are_resolved() {
     let ci = "on:\n  push:\n  pull_request:\nbase: &b\n  continue-on-error: true\njobs:\n  gate:\n    <<: *b\n    runs-on: x\n";
-    has(&only(ci), "continue-on-error");
+    has(&only(ci), "merge key");
+    let ci = "on:\n  push:\n  pull_request:\njobs:\n  gate:\n    runs-on: x\n    steps:\n      - run: true\n        <<: {name: x}\n";
+    has(&only(ci), "merge key");
 }
 
 #[test]
@@ -899,7 +1068,12 @@ fn aggregate_with_any_unlisted_key_is_red() {
     bad.push(AGG.replace(step, &format!("      - uses: x/y@v1\n{step}")));
     for y in bad {
         let v = run(&[("ci.yml", &y)], "gate\n", ALLOW);
-        has(&v, "not the aggregate shape");
+        assert!(
+            v.iter().any(|l| l.contains("not the aggregate shape")
+                || l.contains(KEYS)
+                || l.contains("value entry")),
+            "{v:?}"
+        );
     }
     // The listed keys stay legitimate.
     let ok = AGG
@@ -963,5 +1137,333 @@ fn folded_check_names_collide() {
     has(
         &run(&[("ci.yml", &ci)], "gate\n", ALLOW),
         "no job renders that check name",
+    );
+}
+
+// ---- round 6: the narrow canonical form ----------------------------------------------------
+
+const FIXTURE_AGG_HELPER: &str = "on:\n  push:\n  pull_request:\n";
+
+/// Workflow-level env (BASH_ENV, PATH) can turn the aggregate's `exit 1` into a no-op, so a
+/// top-level `env` is RED unless its whole rendered value is byte-equal to an allow-list entry,
+/// and an aggregate in a workflow that has one is never the aggregate shape.
+#[test]
+fn workflow_level_env_is_red_unless_byte_listed() {
+    for env in [
+        "env:\n  BASH_ENV: '$(f=$(mktemp); echo \"exit 0\" > $f; echo $f)'\n",
+        "env:\n  PATH: /tmp/evil\n",
+        "env: {}\n",
+    ] {
+        let y = AGG
+            .replace("jobs:\n  helper:", &format!("{env}jobs:\n  helper:"))
+            .replace(
+                "runs-on: x\n    steps:\n      - run: true\n  lint",
+                "runs-on: x\n    steps:\n      - run: false\n  lint",
+            );
+        let v = run(&[("ci.yml", &y)], "gate\n", ALLOW);
+        has(&v, "not byte-equal to a value entry for workflow");
+    }
+    let y = AGG.replace("jobs:\n  helper:", "env:\n  A: b\njobs:\n  helper:");
+    let allow = format!("{ALLOW}value ci.yml workflow env {{\"A\":\"b\"}}\n");
+    let v = run(&[("ci.yml", &y)], "gate\n", &allow);
+    has(&v, "not the aggregate shape");
+    let allow = format!("{ALLOW}value ci.yml workflow env {{\"A\":\"c\"}}\n");
+    has(&run(&[("ci.yml", &y)], "gate\n", &allow), "value entry");
+    let allow = format!("{ALLOW}value other.yml workflow env {{\"A\":\"b\"}}\n");
+    has(&run(&[("ci.yml", &y)], "gate\n", &allow), "value entry");
+    let _ = FIXTURE_AGG_HELPER;
+}
+
+#[test]
+fn value_entries_are_byte_equal_per_file_scope_and_key() {
+    let ci = |extra: &str| GOOD.replace("jobs:\n", &format!("{extra}jobs:\n"));
+    let ok = |y: &str, entry: &str| none(only_allow(y, &format!("{ALLOW}{entry}\n")));
+    ok(
+        &ci("env: {A: b, C: 1, D: true, E: null, F: [x, 2]}\n"),
+        "value ci.yml workflow env {\"A\":\"b\",\"C\":1,\"D\":true,\"E\":null,\"F\":[\"x\",2]}",
+    );
+    ok(
+        &ci("run-name: hello\n"),
+        "value ci.yml workflow run-name \"hello\"",
+    );
+    ok(
+        &ci("defaults: {run: {shell: bash}}\n"),
+        "value ci.yml workflow defaults {\"run\":{\"shell\":\"bash\"}}",
+    );
+    let job_env = GOOD.replace("    runs-on:", "    env: {A: b}\n    runs-on:");
+    ok(&job_env, "value ci.yml job:gate env {\"A\":\"b\"}");
+    has(
+        &only(&job_env),
+        "not byte-equal to a value entry for job:gate",
+    );
+    let step_env = GOOD.replace(
+        "      - run: true",
+        "      - run: true\n        env: {A: b}",
+    );
+    ok(&step_env, "value ci.yml step:gate:0 env {\"A\":\"b\"}");
+    has(
+        &only(&step_env),
+        "not byte-equal to a value entry for step:gate:0",
+    );
+    has(
+        &only_allow(
+            &job_env,
+            &format!("{ALLOW}value ci.yml job:gate env {{\"A\":\"b\"}} \n"),
+        ),
+        "value entry",
+    );
+    for bad in [
+        "value ci.yml workflow",
+        "value ci.yml workflow env",
+        "value ci.yml workflow path x",
+        "filter ci.yml push branches yes",
+        "filter ci.yml push colour yes x",
+    ] {
+        has(
+            &only_allow(GOOD, &format!("{ALLOW}{bad}\n")),
+            "allow-list that cannot be read",
+        );
+    }
+}
+
+/// A key outside the committed lists is RED at workflow, job and step level of a gating workflow.
+#[test]
+fn keys_outside_the_allow_list_are_red() {
+    for (what, y) in [
+        ("top", GOOD.replace("jobs:\n", "x-extra: 1\njobs:\n")),
+        ("top", GOOD.replace("jobs:\n", "on-push: 1\njobs:\n")),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    container: alpine\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    services: {}\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    environment: prod\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    outputs: {a: b}\n    runs-on:"),
+        ),
+        (
+            "job",
+            GOOD.replace("    runs-on:", "    defaults: {}\n    runs-on:"),
+        ),
+        (
+            "step",
+            GOOD.replace(
+                "      - run: true",
+                "      - run: true\n        shell: 'true {0}'",
+            ),
+        ),
+        (
+            "step",
+            GOOD.replace(
+                "      - run: true",
+                "      - run: true\n        working-directory: /",
+            ),
+        ),
+        (
+            "step",
+            GOOD.replace(
+                "      - run: true",
+                "      - run: true\n        env: {A: b}",
+            ),
+        ),
+    ] {
+        let v = only(&y);
+        assert!(!v.is_empty(), "{what}: GREEN for {y}");
+    }
+    has(
+        &only(&GOOD.replace("    runs-on:", "    container: alpine\n    runs-on:")),
+        "key \"container\" is not in the committed key allow-list",
+    );
+    // A workflow that cannot gate keeps its job keys free; top-level keys are judged everywhere.
+    let lab = "on: workflow_dispatch\njobs:\n  l:\n    runs-on: x\n    container: alpine\n";
+    none(run(&[("ci.yml", GOOD), ("lab.yml", lab)], "gate\n", ALLOW));
+    let lab_top = "on: workflow_dispatch\nenv: {A: b}\njobs:\n  l:\n    runs-on: x\n";
+    has(
+        &run(&[("ci.yml", GOOD), ("lab.yml", lab_top)], "gate\n", ALLOW),
+        "value entry",
+    );
+}
+
+/// A custom tag anywhere (key, value, nested, sequence) is RED, and a tagged `defaults` key is
+/// no longer invisible to a `contains_key` test.
+#[test]
+fn tags_anywhere_are_red() {
+    for y in [
+        GOOD.replace(
+            "jobs:\n",
+            "!x defaults:\n  run:\n    shell: 'true {0}'\njobs:\n",
+        ),
+        GOOD.replace("name: CI", "name: !x CI"),
+        GOOD.replace("      - run: true", "      - !x\n        run: true"),
+        GOOD.replace(
+            "[self-hosted, clean-room, X64, ffmpeg]",
+            "[self-hosted, !x clean-room]",
+        ),
+        GOOD.replace("on:\n", "!x on:\n"),
+    ] {
+        let v = only(&y);
+        assert!(v.iter().any(|l| l.contains("custom tag")), "{y}\n{v:?}");
+    }
+    let aggregate_with_tagged_defaults = AGG.replace(
+        "jobs:\n  helper:",
+        "!x defaults:\n  run:\n    shell: 'true {0}'\njobs:\n  helper:",
+    );
+    has(
+        &run(
+            &[("ci.yml", &aggregate_with_tagged_defaults)],
+            "gate\n",
+            ALLOW,
+        ),
+        "custom tag",
+    );
+}
+
+/// Known limit, pinned: the parser resolves YAML core-schema tags (`!!str`) to the plain value
+/// before the check sees it, so they are not "custom tags"; every other tag is RED.
+#[test]
+fn core_schema_tags_are_resolved_by_the_parser() {
+    none(only(&GOOD.replace("name: gate", "name: !!str gate")));
+}
+
+/// Entries under .github/workflows that the check does not read are RED, not skipped.
+#[test]
+fn unread_directory_entries_are_red() {
+    let canon = "not a regular file named";
+    let push_only = main_job("push");
+    for name in [
+        ".yml",
+        ".yaml",
+        "x.yml ",
+        " x.yml",
+        "x .yml",
+        "X.yml",
+        "x.YML",
+        "x.yaml.bak",
+        "README.md",
+        "x",
+        "-x.yml",
+        ".x.yml",
+        "ä.yml",
+        "x\ty.yml",
+        "a/../b.yml",
+    ] {
+        if name.contains('/') {
+            continue;
+        }
+        let v = run(&[("ci.yml", GOOD), (name, &push_only)], "gate\n", ALLOW);
+        has(&v, canon);
+    }
+    has(
+        &run(
+            &[("ci.yml", GOOD), ("sub/x.yml", &push_only)],
+            "gate\n",
+            ALLOW,
+        ),
+        canon,
+    );
+    has(
+        &run(&[("ci.yml", GOOD), ("sub/.keep", "")], "gate\n", ALLOW),
+        canon,
+    );
+    for ok in ["a.yml", "a-b_c.1.yaml", "0.yml", "ci2.yml"] {
+        none(run(
+            &[
+                ("ci.yml", GOOD),
+                (ok, "on: workflow_dispatch\njobs:\n  l:\n    runs-on: x\n"),
+            ],
+            "gate\n",
+            ALLOW,
+        ));
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinks_and_non_utf8_names_are_red() {
+    use std::os::unix::ffi::OsStrExt;
+    let canon = "not a regular file named";
+    let root = tree(&[
+        (".github/workflows/ci.yml", GOOD),
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+        ("elsewhere/real.yml", &main_job("push")),
+    ]);
+    let wfs = root.join(".github/workflows");
+    std::os::unix::fs::symlink(root.join("elsewhere/real.yml"), wfs.join("link.yml")).unwrap();
+    has(&one_gate::check(&root), canon);
+    let root = tree(&[
+        (".github/workflows/ci.yml", GOOD),
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    let odd = std::ffi::OsStr::from_bytes(b"x\xff.yml");
+    std::fs::write(root.join(".github/workflows").join(odd), main_job("push")).unwrap();
+    has(&one_gate::check(&root), canon);
+}
+
+#[test]
+fn an_unreadable_workflow_file_is_red() {
+    let root = tree(&[
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    std::fs::create_dir_all(root.join(".github/workflows")).unwrap();
+    std::fs::write(root.join(".github/workflows/ci.yml"), b"on: \xff\xfe\n").unwrap();
+    has(&one_gate::check(&root), "fails closed");
+}
+
+#[test]
+fn a_missing_or_unlistable_workflows_directory_is_red() {
+    let root = tree(&[
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+    ]);
+    let v = one_gate::check(&root);
+    has(&v, "workflows");
+    has(&v, "no workflow files");
+    let root = tree(&[
+        (".github/required-status-checks.txt", "gate\n"),
+        (".github/one-gate-allow.txt", ALLOW),
+        (".github/workflows", "a file, not a directory"),
+    ]);
+    has(&one_gate::check(&root), "workflows");
+}
+
+#[test]
+fn callee_file_names_follow_the_same_form() {
+    let caller =
+        "on:\n  push:\n  pull_request:\njobs:\n  gate:\n    uses: ./.github/workflows/Callee.yml\n";
+    let v = run(
+        &[("ci.yml", caller), ("Callee.yml", CALLEE)],
+        "gate\n",
+        ALLOW,
+    );
+    has(&v, "canonical workflow file name");
+    let caller =
+        "on:\n  push:\n  pull_request:\njobs:\n  gate:\n    uses: ./.github/workflows/callee.yml\n";
+    let callee_env = "on: workflow_call\nenv: {A: b}\njobs:\n  inner:\n    runs-on: x\n    steps:\n      - run: true\n";
+    has(
+        &run(
+            &[("ci.yml", caller), ("callee.yml", callee_env)],
+            "gate\n",
+            ALLOW,
+        ),
+        "value entry",
+    );
+    let callee_job_key = "on: workflow_call\njobs:\n  inner:\n    container: x\n    runs-on: x\n    steps:\n      - run: true\n";
+    has(
+        &run(
+            &[("ci.yml", caller), ("callee.yml", callee_job_key)],
+            "gate\n",
+            ALLOW,
+        ),
+        "key allow-list",
     );
 }

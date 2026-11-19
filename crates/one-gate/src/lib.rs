@@ -21,11 +21,12 @@
 //!    an `if` (job, step or callee job) unless byte-equal to an `if` line of the allow-list.
 
 mod allow;
+mod canon;
 mod workflow;
 
 use allow::Allow;
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use workflow::{Cx, Job, Workflow};
 
 const REQUIRED: &str = ".github/required-status-checks.txt";
@@ -40,25 +41,6 @@ fn read_lines(path: &Path) -> Result<Vec<String>, String> {
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .map(str::to_owned)
         .collect())
-}
-
-fn workflow_files(root: &Path) -> Result<Vec<PathBuf>, String> {
-    let dir = root.join(WORKFLOWS);
-    let rd = std::fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let mut files: Vec<_> = rd
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| {
-            p.extension()
-                .and_then(|x| x.to_str())
-                .is_some_and(|x| x.eq_ignore_ascii_case("yml") || x.eq_ignore_ascii_case("yaml"))
-        })
-        .collect();
-    files.sort();
-    if files.is_empty() {
-        return Err(format!("{}: no workflow files", dir.display()));
-    }
-    Ok(files)
 }
 
 /// Every violation of the ONE GATE rule in the repository at `root`; empty means PASS.
@@ -88,25 +70,21 @@ pub fn check(root: &Path) -> Vec<String> {
     };
     let cx = Cx::new(root, &allow);
     let mut wfs = Vec::new();
-    match workflow_files(root) {
-        Err(e) => out.push(e),
-        Ok(files) => {
-            for p in files {
-                let name = p
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
-                match std::fs::read_to_string(&p)
-                    .map_err(|e| e.to_string())
-                    .and_then(|t| workflow::parse(&cx, &name, &t))
-                {
-                    Ok(w) => wfs.push(w),
-                    Err(e) => out.push(format!(
-                        "{name}: {e}; a workflow that cannot be read fails closed"
-                    )),
-                }
-            }
+    let dir = root.join(WORKFLOWS);
+    let (names, bad) = canon::list_dir(&dir);
+    out.extend(bad);
+    if names.is_empty() {
+        out.push(format!("{}: no workflow files", dir.display()));
+    }
+    for name in names {
+        match std::fs::read_to_string(dir.join(&name))
+            .map_err(|e| e.to_string())
+            .and_then(|t| workflow::parse(&cx, &name, &t))
+        {
+            Ok(w) => wfs.push(w),
+            Err(e) => out.push(format!(
+                "{name}: {e}; a workflow that cannot be read fails closed"
+            )),
         }
     }
     judge(&wfs, &required, &allow, &mut out);

@@ -1,11 +1,19 @@
 //! The committed allow-list, `.github/one-gate-allow.txt`. Anything the check does not
-//! positively find here is RED. One entry per line; `#` starts a comment line.
+//! positively find here is RED. THIS FILE IS PART OF THE GATE: an edit to it is a GATE CHANGE and
+//! needs a sign-off round from a session that is not the author, bound to the final commit.
+//! One entry per line; `#` starts a comment line.
 //!
 //! * `trigger <event> <main|pr|neutral> [file ...]`: classes an event. With files, the entry
 //!   applies to those workflow files only. `push`, `workflow_run` and `merge_group` are always
 //!   `main`; `pull_request` is always `pr`; `pull_request_target` is never allowed.
 //! * `remote <owner/repo/path@ref> <inner check name> ...`: a remote reusable workflow, by exact
 //!   ref, with the check names it renders after `caller / `.
+//! * `value <file> <scope> <key> <rendered>`: an `env`, `defaults` or `run-name` accepted when its
+//!   whole rendered value (`canon::render`) is byte-equal. Scope: `workflow`, `job:<id>`,
+//!   `step:<id>:<index>`.
+//! * `filter <file> <event> <key> <yes|no> <entry>`: one `branches`, `branches-ignore`, `tags`,
+//!   `paths`, `paths-ignore` or `types` entry, byte-equal, with its class stated by hand: yes means
+//!   it lets the workflow run on main (push) or on a PR to main (pull_request). No pattern is ever matched.
 //! * `if <text>`: a job-level or step-level `if` accepted byte for byte on a main-side or
 //!   required job.
 
@@ -22,6 +30,8 @@ pub struct Allow {
     triggers: Vec<(String, Class, Vec<String>)>,
     pub remotes: BTreeMap<String, Vec<String>>,
     pub ifs: BTreeSet<String>,
+    values: BTreeSet<(String, String, String, String)>,
+    filters: Vec<(String, String, String, bool, String)>,
 }
 
 fn parse_class(s: &str) -> Option<Class> {
@@ -73,11 +83,67 @@ fn remote_line(words: &[&str]) -> Result<(String, Vec<String>), String> {
     }
 }
 
+fn value_line(line: &str) -> Result<(String, String, String, String), String> {
+    let w: Vec<&str> = line.splitn(5, ' ').collect();
+    match w[..] {
+        ["value", f, s, k, v] if !v.is_empty() && crate::canon::VALUE_KEYS.contains(&k) => {
+            Ok((f.to_owned(), s.to_owned(), k.to_owned(), v.to_owned()))
+        }
+        _ => Err("value needs <file> <scope> <env|defaults|run-name> <rendered>".to_owned()),
+    }
+}
+
+fn filter_line(line: &str) -> Result<(String, String, String, bool, String), String> {
+    let w: Vec<&str> = line.splitn(6, ' ').collect();
+    match w[..] {
+        ["filter", f, ev, k, c @ ("yes" | "no"), e]
+            if !e.is_empty() && crate::canon::EVENT_KEYS.contains(&k) =>
+        {
+            Ok((
+                f.to_owned(),
+                ev.to_owned(),
+                k.to_owned(),
+                c == "yes",
+                e.to_owned(),
+            ))
+        }
+        _ => Err("filter needs <file> <event> <key> <yes|no> <entry>".to_owned()),
+    }
+}
+
 impl Allow {
+    /// Is this rendered `env`, `defaults` or `run-name` byte-equal to an entry for the scope?
+    pub fn value_ok(&self, file: &str, scope: &str, key: &str, rendered: &str) -> bool {
+        self.values.contains(&(
+            file.to_owned(),
+            scope.to_owned(),
+            key.to_owned(),
+            rendered.to_owned(),
+        ))
+    }
+
+    /// The hand-stated class of a filter entry, byte-equal, or None.
+    pub fn filter_class(&self, file: &str, event: &str, key: &str, entry: &str) -> Option<bool> {
+        let hits: Vec<bool> = self
+            .filters
+            .iter()
+            .filter(|(f, ev, k, _, e)| f == file && ev == event && k == key && e == entry)
+            .map(|x| x.3)
+            .collect();
+        match hits.first() {
+            Some(c) if hits.iter().all(|x| x == c) => Some(*c),
+            _ => None,
+        }
+    }
+
     fn entry(&mut self, line: &str) -> Result<(), String> {
         let words: Vec<&str> = line.split_whitespace().collect();
         match words.first().copied() {
             Some("trigger") => trigger_line(&words).map(|t| self.triggers.push(t)),
+            Some("value") => value_line(line).map(|v| {
+                self.values.insert(v);
+            }),
+            Some("filter") => filter_line(line).map(|f| self.filters.push(f)),
             Some("remote") => remote_line(&words).map(|(k, v)| {
                 self.remotes.insert(k, v);
             }),
@@ -85,7 +151,7 @@ impl Allow {
                 self.ifs.insert(line[3..].to_owned());
                 Ok(())
             }
-            _ => Err("not a trigger, remote or if entry".to_owned()),
+            _ => Err("not a trigger, remote, value, filter or if entry".to_owned()),
         }
     }
 
@@ -95,6 +161,8 @@ impl Allow {
             triggers: Vec::new(),
             remotes: BTreeMap::new(),
             ifs: BTreeSet::new(),
+            values: BTreeSet::new(),
+            filters: Vec::new(),
         };
         let mut errs = Vec::new();
         for (n, line) in text.lines().enumerate() {
