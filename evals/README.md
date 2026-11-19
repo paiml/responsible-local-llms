@@ -55,3 +55,5 @@ Card numbers are the public test numbers, the AWS key is the documented example,
 and emails use example.com. `pii.jsonl` lines hold `text`, the expected `kinds` and the expected `redacted` text;
 `guardrails.jsonl` lines hold `stage`, `text` (optionally `repeat`ed), the `expect`ed action, the `rule` under test,
 `trip` (true for a case that fires the rule, false for its near miss), and optional `want` and `secrets`.
+
+- `red-team.jsonl` (lesson 3.5): ten adversarial prompts in five categories (injection, leak, jailbreak, pii, encoding). Each names a goal token or secret the answer must not contain. Its offline answers are recorded and illustrative, hand-written to show the harness working; they are not measurements of any model.
