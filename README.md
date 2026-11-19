@@ -1,6 +1,6 @@
 # Responsible Generative AI and Local LLMs: demo code
 
-Companion code for the LinkedIn Learning course *Responsible Generative AI and Local LLMs*.
+Companion code for course *Responsible Generative AI and Local LLMs*.
 One Rust workspace, one test suite, and three local runtimes serving the same model:
 [apr](https://github.com/paiml/aprender), [Ollama](https://ollama.com) and [llama.cpp](https://github.com/ggml-org/llama.cpp).
 
