@@ -1,0 +1,108 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 2.5: Elo in Rust. Head-to-head results on the same eval cases give ratings that conserve the total points and rank the models; good enough is a threshold on the expected score against the incumbent."
+  references:
+    - "evals/elo.jsonl"
+    - "crates/ch2-evals/src/elo.rs"
+    - "crates/ch2-evals/src/bin/lesson5_elo.rs"
+    - "crates/ch2-evals/fixtures/elo.jsonl"
+  tags:
+    - evals
+    - elo
+    - ranking
+
+equations:
+  expected_score:
+    formula: "E(ra, rb) = 1 / (1 + 10^((rb - ra) / 400))"
+    domain: "ra, rb: finite ratings"
+    codomain: "E ∈ (0, 1)"
+    invariants:
+      - "E(ra, rb) + E(rb, ra) = 1"
+      - "E(r, r) = 1/2"
+      - "E is increasing in ra"
+    preconditions:
+      - "ratings are finite"
+    postconditions:
+      - "0 < E < 1"
+  elo_update:
+    formula: "ra' = ra + K (s - E(ra, rb)), rb' = rb + K ((1 - s) - E(rb, ra)), s ∈ {0, 1/2, 1}"
+    domain: "a match between two distinct known models"
+    codomain: "ratings with the same total as before"
+    invariants:
+      - "ra' + rb' = ra + rb, so the total stays n × START"
+      - "a win raises the winner and lowers the loser"
+      - "a match against oneself, an unknown model, no models or no matches is refused"
+    preconditions:
+      - "|models| ≥ 2 ∧ |matches| ≥ 1"
+    postconditions:
+      - "the ratings come back strongest first, ties by name"
+  good_enough:
+    formula: "good_enough(c, r, t) ⇔ E(c, r) ≥ t"
+    domain: "c: candidate rating, r: reference rating, t: threshold"
+    codomain: "bool"
+    invariants:
+      - "raising the candidate never turns good enough into not good enough"
+    preconditions:
+      - "t ∈ (0, 1)"
+    postconditions:
+      - "good_enough(r, r, 1/2) = true"
+
+proof_obligations:
+  - type: invariant
+    property: "Elo conserves points"
+    formal: "Σ ratings = n × START after any list of matches"
+    applies_to: elo_update
+  - type: invariant
+    property: "Expected scores are complementary"
+    formal: "E(ra, rb) + E(rb, ra) = 1"
+    applies_to: expected_score
+
+falsification_tests:
+  - id: FALSIFY-E25-001
+    rule: "Expected scores are complementary"
+    prediction: "Equal ratings give 1/2 and the two sides sum to 1"
+    test: "elo::tests::expected_scores_of_two_players_sum_to_one_and_equal_ratings_split_evenly"
+    if_fails: "the expected-score formula is wrong"
+  - id: FALSIFY-E25-002
+    rule: "A win moves K/2 between equals"
+    prediction: "Winner 1016, loser 984 from 1000 each at K = 32"
+    test: "elo::tests::a_win_moves_k_over_two_points_from_loser_to_winner"
+    if_fails: "the update rule is wrong"
+  - id: FALSIFY-E25-003
+    rule: "Bad rankings are refused"
+    prediction: "One model, no matches, a self-match and an unknown model are each an Err"
+    test: "elo::tests::a_ranking_with_no_models_no_matches_or_a_bad_match_is_refused"
+    if_fails: "a meaningless ranking is produced"
+  - id: FALSIFY-E25-004
+    rule: "Created or lost points"
+    prediction: "Adding points to one rating makes contract_holds false"
+    test: "elo::tests::contract_fails_when_points_are_created_or_lost"
+    if_fails: "contract_holds no longer checks conservation"
+  - id: FALSIFY-E25-005
+    rule: "Wrong or unsorted order"
+    prediction: "Swapping ratings makes contract_holds false"
+    test: "elo::tests::contract_fails_when_the_order_is_wrong_or_unsorted"
+    if_fails: "contract_holds no longer checks the order"
+  - id: FALSIFY-E25-006
+    rule: "Threshold decides good enough"
+    prediction: "A candidate 100 below the reference passes at 0.35 and fails at 0.5"
+    test: "elo::tests::good_enough_is_a_threshold_on_the_expected_score"
+    if_fails: "the good-enough decision is not a function of the expected score"
+  - id: FALSIFY-E25-007
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson5_elo prints 'contract: rank by head to head OK' and exits 0"
+    test: "tests/bins.rs::lesson5_prints_its_contract_and_a_ranking"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-E25-001
+  name: "Rank by head to head"
+  description: "Lesson 2.5 demo contract"
+  checks:
+    - "expected_score"
+    - "elo_update"
+    - "good_enough"
+  pass_criteria: "All falsification tests pass offline; the bin prints its contract line"

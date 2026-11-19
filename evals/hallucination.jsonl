@@ -1,0 +1,4 @@
+{"id":"refund-window","question":"How long is the refund window?","passages":[{"id":"p1","text":"The Orchard Co-op refund window is 30 days from delivery."},{"id":"p2","text":"Shipping is free on orders over 50 euros."}],"gold":"p1","fact":"30 days"}
+{"id":"free-shipping","question":"What order total ships free?","passages":[{"id":"p1","text":"The Orchard Co-op refund window is 30 days from delivery."},{"id":"p2","text":"Shipping is free on orders over 50 euros."}],"gold":"p2","fact":"50 euros"}
+{"id":"frame-warranty","question":"How long is the frame warranty?","passages":[{"id":"p1","text":"The Orchard Co-op refund window is 30 days from delivery."},{"id":"p3","text":"Frames carry a 2-year warranty."}],"gold":"p3","fact":"2-year"}
+{"id":"support-hours","question":"What are the support phone hours?","passages":[{"id":"p1","text":"The Orchard Co-op refund window is 30 days from delivery."},{"id":"p2","text":"Shipping is free on orders over 50 euros."}]}

@@ -121,3 +121,66 @@ bindings:
   signature: 'fn merged_contract_holds(merged: &str, files: usize) -> bool'
   status: implemented
   notes: Rust form of the lesson 1.5 contract; scripts/whisper-pipeline.sh output is checked against it in tests/whisper_script.rs and falsified by whisper::tests and scripts/test-whisper-pipeline.sh.
+- contract: hallucination-citation-v1.yaml
+  equation: grounded
+  module_path: ch2_evals::hallucination
+  function: judge
+  signature: 'fn judge(case: &Case, answer: &str) -> Verdict'
+  status: implemented
+  notes: Falsified by hallucination::tests::the_checker_gives_each_failure_its_own_verdict.
+- contract: hallucination-citation-v1.yaml
+  equation: refusal
+  module_path: ch2_evals::hallucination
+  function: judge
+  signature: 'fn judge(case: &Case, answer: &str) -> Verdict'
+  status: implemented
+  notes: Falsified by hallucination::tests::an_unanswerable_question_needs_the_refusal.
+- contract: hallucination-citation-v1.yaml
+  equation: checker_catches_all
+  module_path: ch2_evals::hallucination::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_hallucination bin.
+- contract: structured-output-retry-v1.yaml
+  equation: schema_valid
+  module_path: ch2_evals::structured
+  function: validate
+  signature: 'fn validate(schema: &Value, value: &Value) -> Vec<String>'
+  status: implemented
+  notes: Falsified by structured::tests schema refusal cases.
+- contract: structured-output-retry-v1.yaml
+  equation: bounded_retry
+  module_path: ch2_evals::structured
+  function: ask
+  signature: 'fn ask(...)'
+  status: implemented
+  notes: Falsified by structured::tests::retries_are_bounded_and_give_no_value.
+- contract: structured-output-retry-v1.yaml
+  equation: summary_sound
+  module_path: ch2_evals::structured::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_structured bin.
+- contract: elo-ranking-v1.yaml
+  equation: expected_score
+  module_path: ch2_evals::elo
+  function: expected_score
+  signature: 'fn expected_score(ra: f64, rb: f64) -> f64'
+  status: implemented
+  notes: Falsified by elo::tests expected-score test.
+- contract: elo-ranking-v1.yaml
+  equation: elo_update
+  module_path: ch2_evals::elo
+  function: rate
+  signature: 'fn rate(...)'
+  status: implemented
+  notes: Falsified by elo::tests::a_win_moves_k_over_two_points_from_loser_to_winner.
+- contract: elo-ranking-v1.yaml
+  equation: good_enough
+  module_path: ch2_evals::elo
+  function: good_enough
+  signature: 'fn good_enough(...) -> bool'
+  status: implemented
+  notes: Falsified by elo::tests::good_enough_is_a_threshold_on_the_expected_score.

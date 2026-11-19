@@ -15,3 +15,24 @@ fn lesson4_contract_holds_on_the_configured_runtime() {
     assert!(o.status.success(), "{exe} failed:\n{err}");
     assert!(out.contains("contract: pass rates, not single runs OK"));
 }
+
+#[test]
+fn lessons_2_and_3_run_on_the_configured_runtime() {
+    for (exe, line) in [
+        (
+            env!("CARGO_BIN_EXE_lesson2_hallucination"),
+            "contract: cite it or fail OK",
+        ),
+        (
+            env!("CARGO_BIN_EXE_lesson3_structured"),
+            "contract: trust the reply or get no reply OK",
+        ),
+    ] {
+        let o = Command::new(exe).output().expect("spawn demo bin");
+        let out = String::from_utf8_lossy(&o.stdout).into_owned();
+        let err = String::from_utf8_lossy(&o.stderr).into_owned();
+        println!("{exe}\n{out}{err}");
+        assert!(o.status.success(), "{exe} failed:\n{err}");
+        assert!(out.contains(line));
+    }
+}
