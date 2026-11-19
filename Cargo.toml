@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/rll-client", "crates/ch1-sovereign", "crates/rll-evals", "crates/ch2-evals"]
+members = ["crates/rll-client", "crates/ch1-sovereign", "crates/rll-evals", "crates/ch2-evals", "crates/ch3-redteam"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,3 +14,4 @@ serde_json = "1"
 rll-client = { path = "crates/rll-client" }
 rll-evals = { path = "crates/rll-evals" }
 ch1-sovereign = { path = "crates/ch1-sovereign" }
+ch3-redteam = { path = "crates/ch3-redteam" }

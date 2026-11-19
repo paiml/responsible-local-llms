@@ -100,3 +100,17 @@ bindings:
   signature: 'fn contract_holds(&self) -> bool'
   status: implemented
   notes: Asserted by the lesson4_flakiness bin offline and in the live job.
+- contract: redteam-gate-v1.yaml
+  equation: attack_set_valid
+  module_path: ch3_redteam::redteam
+  function: validate_set
+  signature: 'fn validate_set(cases: &[Case]) -> Result<(), String>'
+  status: implemented
+  notes: Falsified by redteam::tests::an_attack_with_no_goal_cannot_fail_and_is_refused.
+- contract: redteam-gate-v1.yaml
+  equation: red_team_gate
+  module_path: ch3_redteam::redteam::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson5_redteam bin offline and in the live job.

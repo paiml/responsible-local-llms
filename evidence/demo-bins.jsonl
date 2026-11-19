@@ -3,3 +3,4 @@
 {"id":"lesson4_economics","crate":"ch1-sovereign","source":"crates/ch1-sovereign/src/bin/lesson4_economics.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson1_test_set_spec","crate":"ch2-evals","source":"crates/ch2-evals/src/bin/lesson1_test_set_spec.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson4_flakiness","crate":"ch2-evals","source":"crates/ch2-evals/src/bin/lesson4_flakiness.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson5_redteam","crate":"ch3-redteam","source":"crates/ch3-redteam/src/bin/lesson5_redteam.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
