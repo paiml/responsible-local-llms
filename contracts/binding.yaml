@@ -65,3 +65,52 @@ bindings:
   signature: 'fn hosted_cost(&self, mtok_per_month: f64) -> f64'
   status: implemented
   notes: hosted(m) = h·m.
+- contract: licence-check-v1.yaml
+  equation: licence_verdict_sound
+  module_path: ch5_governance::licence::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson1_licence_check bin; falsified by licence::tests.
+- contract: licence-check-v1.yaml
+  equation: licence_verdict_sound
+  module_path: ch5_governance::licence
+  function: finding_is_sound
+  signature: 'fn finding_is_sound(card: &Card, f: &Finding) -> bool'
+  status: implemented
+  notes: Falsified by licence::tests::soundness_refuses_an_allow_for_an_unlicensed_or_custom_card.
+- contract: ai-act-doc-v1.yaml
+  equation: doc_rows_honest
+  module_path: ch5_governance::aiact::Doc
+  function: contract_holds
+  signature: 'fn contract_holds(&self, facts: &Facts, root: &Path) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_ai_act_docs bin; falsified by aiact::tests.
+- contract: ai-act-doc-v1.yaml
+  equation: tier_is_max
+  module_path: ch5_governance::aiact
+  function: classify
+  signature: 'fn classify(uses: &[String]) -> Result<(Tier, Vec<String>), String>'
+  status: implemented
+  notes: Falsified by aiact::tests::the_highest_use_sets_the_tier.
+- contract: sensitivity-routing-v1.yaml
+  equation: sensitive_stays_local
+  module_path: ch5_governance::router::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_sensitivity_router bin; falsified by router::tests.
+- contract: sensitivity-routing-v1.yaml
+  equation: sensitive_stays_local
+  module_path: ch5_governance::router
+  function: decide
+  signature: 'fn decide(text: &str, hosted_allowed: bool) -> (Route, Vec<&''static str>)'
+  status: implemented
+  notes: Sensitive prompts route local whatever the policy; falsified by router::tests::decide_keeps_sensitive_local_whatever_the_policy.
+- contract: responsible-checklist-v1.yaml
+  equation: checklist_gate
+  module_path: ch5_governance::checklist::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson4_checklist bin; falsified by checklist::tests.

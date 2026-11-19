@@ -1,0 +1,63 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 5.1: a licence check never grants more than its policy table allows; no licence means no model."
+  references:
+    - "crates/ch5-governance/src/licence.rs"
+    - "crates/ch5-governance/src/bin/lesson1_licence_check.rs"
+    - "crates/ch5-governance/src/sources.rs: every licence fact cites its source with an access date"
+  tags:
+    - licensing
+    - governance
+
+equations:
+  licence_verdict_sound:
+    formula: "Allow(card) ⇒ policy(license(card)).class = Permissive ∧ license(card) = none ⇒ Deny(card)"
+    domain: "the recorded model cards in fixtures/cards/ and a monthly-active-user count"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "a card with no licence is denied"
+      - "a licence outside the policy table is never allowed"
+      - "a custom licence is never allowed without a person reading it"
+      - "the recorded cards produce allow, review and deny, so the contract is not vacuous"
+    preconditions:
+      - "every card in CARDS is parsed by parse_card"
+    postconditions:
+      - "summary.contract_holds() implies every Allow row names a Permissive policy"
+
+proof_obligations:
+  - type: invariant
+    property: "No unlicensed model is allowed"
+    formal: "license(c) = none ⇒ verdict(c) = Deny"
+    applies_to: licence_verdict_sound
+  - type: invariant
+    property: "Allow needs a permissive row"
+    formal: "verdict(c) = Allow ⇒ class(policy(license(c))) = Permissive"
+    applies_to: licence_verdict_sound
+
+falsification_tests:
+  - id: FALSIFY-L51-001
+    rule: "An unlicensed card that is allowed"
+    prediction: "contract_holds is false when a card with no licence gets Allow"
+    test: "licence::tests::contract_fails_when_an_unlicensed_card_is_allowed"
+    if_fails: "the contract no longer requires Deny for a missing licence"
+  - id: FALSIFY-L51-002
+    rule: "A custom licence that is allowed"
+    prediction: "contract_holds is false when llama3.1 gets Allow"
+    test: "licence::tests::contract_fails_when_a_custom_licence_is_allowed"
+    if_fails: "the contract no longer ties Allow to a permissive policy"
+  - id: FALSIFY-L51-003
+    rule: "Bin enforces the contract"
+    prediction: "lesson1_licence_check prints its contract line and exits 0"
+    test: "tests/bins.rs::lesson1_prints_its_contract_and_its_sources"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L51-001
+  name: "Licence check"
+  description: "Lesson 5.1 demo contract"
+  checks:
+    - "licence_verdict_sound"
+  pass_criteria: "All falsification tests pass offline"

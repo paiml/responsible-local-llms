@@ -1,0 +1,57 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 5.4: a ticked checklist box needs an evidence file that exists."
+  references:
+    - "crates/ch5-governance/src/checklist.rs"
+    - "crates/ch5-governance/src/bin/lesson4_checklist.rs"
+    - "RESPONSIBLE-AI.md"
+  tags:
+    - checklist
+    - release
+
+equations:
+  checklist_gate:
+    formula: "pass(list) ⇔ ∀ r ∈ REQUIRED: exactly one item r, ticked, with evidence path that exists ∧ no item outside REQUIRED"
+    domain: "RESPONSIBLE-AI.md and the recorded bad checklist"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "the repo's own checklist has no problems"
+      - "the recorded bad checklist fails for every kind of defect"
+    preconditions:
+      - "every line starting with `- [` is `- [x]` or `- [ ]`"
+    postconditions:
+      - "summary.contract_holds() implies good.is_empty()"
+
+proof_obligations:
+  - type: invariant
+    property: "A tick without a file is a failure"
+    formal: "done(i) ∧ ¬exists(evidence(i)) ⇒ problem(i)"
+    applies_to: checklist_gate
+
+falsification_tests:
+  - id: FALSIFY-L54-001
+    rule: "A problem in the real checklist"
+    prediction: "contract_holds is false when the repo's checklist reports a problem or the bad one stops failing for a reason"
+    test: "checklist::tests::contract_fails_if_the_good_checklist_has_a_problem_or_the_bad_one_a_gap"
+    if_fails: "the contract no longer separates good from bad"
+  - id: FALSIFY-L54-002
+    rule: "Each defect kind is caught"
+    prediction: "the bad checklist reports missing, open, no-evidence, absent-file, duplicate and extra items"
+    test: "checklist::tests::the_recorded_bad_checklist_fails_for_each_reason"
+    if_fails: "a defect kind slips through the checker"
+  - id: FALSIFY-L54-003
+    rule: "Bin enforces the contract"
+    prediction: "lesson4_checklist prints its contract line and exits 0"
+    test: "tests/bins.rs::lesson4_checks_the_repos_own_checklist"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L54-001
+  name: "Responsible-AI checklist"
+  description: "Lesson 5.4 demo contract"
+  checks:
+    - "checklist_gate"
+  pass_criteria: "All falsification tests pass offline"

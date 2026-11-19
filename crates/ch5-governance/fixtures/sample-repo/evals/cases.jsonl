@@ -1,0 +1,2 @@
+{"id":"c1","prompt":"What is on invoice 12?","must_contain":"invoice"}
+{"id":"c2","prompt":"Refund policy?","must_contain":"refund"}

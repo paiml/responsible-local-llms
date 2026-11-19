@@ -1,3 +1,7 @@
 {"id":"lesson2_three_runtimes","crate":"ch1-sovereign","source":"crates/ch1-sovereign/src/bin/lesson2_three_runtimes.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson3_quantize","crate":"ch1-sovereign","source":"crates/ch1-sovereign/src/bin/lesson3_quantize.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson4_economics","crate":"ch1-sovereign","source":"crates/ch1-sovereign/src/bin/lesson4_economics.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson1_licence_check","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson1_licence_check.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson2_ai_act_docs","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson2_ai_act_docs.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson3_sensitivity_router","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson3_sensitivity_router.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson4_checklist","crate":"ch5-governance","source":"crates/ch5-governance/src/bin/lesson4_checklist.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
