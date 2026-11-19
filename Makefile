@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SUFFIXES:
 .DELETE_ON_ERROR:
 
-.PHONY: test coverage lint lint-rust lint-shell pv live gate
+.PHONY: test coverage lint lint-rust lint-shell pv live gate one-gate
 
 # Offline: recorded fixtures only.
 test:
@@ -44,4 +44,11 @@ pv:
 live:
 	scripts/live-suite.sh $(RUNTIMES)
 
-gate: lint test coverage pv
+gate: one-gate lint test coverage pv
+
+# ONE GATE (operator ruling 2026-11-19): every job that runs on push to main also runs on pull
+# requests and is in .github/required-checks.txt. pmat comply has no repo-local check hook, so
+# this is the check; the falsifier proves it goes red.
+one-gate:
+	scripts/lint-one-gate.sh
+	scripts/falsify-one-gate.sh
