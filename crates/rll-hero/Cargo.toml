@@ -1,0 +1,13 @@
+[package]
+name = "rll-hero"
+description = "The README hero image: a deterministic PNG drawn by Rust code from this repo's own offline demo outputs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ch1-sovereign.workspace = true
+ch2-evals = { path = "../ch2-evals" }
+ch3-redteam = { path = "../ch3-redteam" }
+rll-client.workspace = true
