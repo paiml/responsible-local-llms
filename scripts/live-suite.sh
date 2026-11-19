@@ -2,13 +2,16 @@
 # Live suite: start real local runtimes, then run the same demo-bin tests against each
 # one through RLL_LIVE=1 / RLL_RUNTIME / RLL_BASE_URL / RLL_MODEL.
 #
-# Usage: scripts/live-suite.sh [runtime ...]     (default: $RLL_LIVE_RUNTIMES, else "llamacpp ollama")
+# Usage: scripts/live-suite.sh [runtime ...]     (default: $RLL_LIVE_RUNTIMES, else "apr llamacpp ollama")
 #   llamacpp, ollama  run from pinned container images (needs docker; nothing is installed on the host)
 #   apr               runs scripts/serve-apr.sh (needs `apr` on PATH)
 # Env: RLL_QUANT (set to q4_k_m here: the cached model) labels the lesson3_quality score.
 #      RLL_MODEL_DIR  where the test model is cached (default .cache/models)
+#      RLL_APR_LOG    file for the apr server output (default /dev/null)
 #
 # A runtime that cannot start fails the run with a message naming what is missing.
+# Lesson 1.2 asks all three runtimes in one run, so the suite always needs all three up at
+# once. A run without all three is a FAILURE, never a skipped lesson that still prints PASS.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,7 +24,11 @@ MODEL_NAME=qwen3-0.6b
 die() { echo "live-suite: FAIL: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is not on PATH ($2); this job never installs it"; }
 
-read -r -a runtimes <<< "${*:-${RLL_LIVE_RUNTIMES:-llamacpp ollama}}"
+read -r -a runtimes <<< "${*:-${RLL_LIVE_RUNTIMES:-apr llamacpp ollama}}"
+# Refuse a partial run before anything starts: no skipped lesson contract, no third state.
+for want in apr llamacpp ollama; do
+  [[ " ${runtimes[*]} " == *" $want "* ]] || die "lesson 1.2 needs apr, llamacpp and ollama in one run; $want is missing from (${runtimes[*]})"
+done
 need curl "used to fetch the test model and probe health"
 need sha256sum "used to verify the test model"
 
@@ -77,7 +84,7 @@ base_url() { # runtime -> sets BASE
       docker exec "rll-ollama-$$" sh -c "printf 'FROM /tmp/model.gguf\n' > /tmp/Modelfile && ollama create $MODEL_NAME -f /tmp/Modelfile" >/dev/null ;;
     apr)
       need apr "the apr leg runs scripts/serve-apr.sh"
-      GGUF=$gguf RLL_APR_PORT=18081 scripts/serve-apr.sh >/dev/null 2>&1 &
+      GGUF=$gguf RLL_APR_PORT=18081 scripts/serve-apr.sh >"${RLL_APR_LOG:-/dev/null}" 2>&1 &
       pids+=("$!")
       BASE=http://127.0.0.1:18081
       wait_up "$BASE/v1/models" "apr" ;;
@@ -85,13 +92,23 @@ base_url() { # runtime -> sets BASE
   esac
 }
 
+declare -A urls=()
 for rt in "${runtimes[@]}"; do
   base_url "$rt"
+  urls[$rt]=$BASE
   echo "live-suite: $rt up at $BASE"
   RLL_LIVE=1 RLL_QUANT=q4_k_m RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
     cargo test -q -p ch1-sovereign --test configured_runtime -- --nocapture --test-threads 1
   RLL_LIVE=1 RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
+    cargo test -q -p ch2-evals --test configured_runtime -- --nocapture --test-threads 1
+  RLL_LIVE=1 RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
     cargo test -q -p ch4-agents --test configured_runtime -- --nocapture --test-threads 1
   echo "live-suite: $rt PASS"
 done
+# Lesson 1.2 asks all three runtimes in one run, so it needs all three up at once. The
+# servers started above stay up until this script exits.
+RLL_LIVE=1 RLL_MODEL=$MODEL_NAME RLL_BASE_URL_APR=${urls[apr]} RLL_BASE_URL_OLLAMA=${urls[ollama]} \
+  RLL_BASE_URL_LLAMACPP=${urls[llamacpp]} \
+  cargo test -q -p ch1-sovereign --test three_runtimes_live -- --nocapture --test-threads 1
+echo "live-suite: lesson 1.2 PASS (all three runtimes at once)"
 echo "live-suite: PASS (${runtimes[*]})"

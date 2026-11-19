@@ -9,6 +9,6 @@ pub mod fixtures;
 pub mod http;
 pub mod runtime;
 
-pub use chat::{ChatRequest, Client, Completion, Reply, Transport};
+pub use chat::{direct, ChatRequest, Client, Completion, Reply, Transport};
 pub use error::Error;
 pub use runtime::{Config, Runtime};

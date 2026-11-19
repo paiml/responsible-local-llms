@@ -36,3 +36,15 @@ fn lessons_2_and_3_run_on_the_configured_runtime() {
         assert!(out.contains(line));
     }
 }
+
+#[test]
+fn lesson6_gate_holds_on_the_configured_runtime() {
+    let exe = env!("CARGO_BIN_EXE_lesson6_ci_gate");
+    let o = Command::new(exe).output().expect("spawn demo bin");
+    let out = String::from_utf8_lossy(&o.stdout).into_owned();
+    let err = String::from_utf8_lossy(&o.stderr).into_owned();
+    println!("{exe}\n{out}{err}");
+    assert!(o.status.success(), "{exe} failed:\n{err}");
+    assert!(out.contains("contract: a gate that can fail OK"));
+    assert!(out.contains("GATE FAIL"));
+}
