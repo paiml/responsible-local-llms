@@ -36,7 +36,7 @@ pub fn run_at<F: Fn(&str) -> Option<String>>(
     let mut answers = Vec::new();
     for rt in Runtime::ALL {
         let client = client_for(rt, Some(&rt.base_url_from(&lookup)), live);
-        let c = client.chat(&ChatRequest::new("qwen3-0.6b", PROMPT))?;
+        let c = client.chat(&ChatRequest::direct("qwen3-0.6b", PROMPT))?;
         let _ = writeln!(
             out,
             "{:<9} {:>6.1} tok/s  {}",
