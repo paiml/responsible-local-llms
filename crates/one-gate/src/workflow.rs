@@ -252,7 +252,7 @@ fn combos(strategy: &Value) -> Result<Vec<Vec<(String, String)>>, String> {
 /// The closed set of check names the check understands: non-empty, trimmed, single spaces, and only
 /// letters, digits, space and `_ . / ( ) , -`. Anything else (empty, blank, `${{`, control or
 /// non-ASCII characters) is RED, so no rendered name is guessed at.
-fn plain_name(n: &str) -> bool {
+pub fn plain_name(n: &str) -> bool {
     !n.is_empty()
         && n == n.trim_matches(' ')
         && !n.contains("  ")
@@ -283,6 +283,20 @@ fn render_names(id: &str, m: &Mapping) -> Result<Vec<String>, String> {
     let sub = Regex::new(r"\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}").expect("static regex");
     let mut out = Vec::new();
     for c in cs {
+        if let (Some(t), false) = (custom, c.is_empty()) {
+            // GitHub renders a matrix job whose name uses no matrix value as `name (v1, v2)`, and
+            // its rule for a partly referenced matrix is unmeasured: so a custom name over a matrix
+            // must reference every matrix key, else RED.
+            let used: Vec<&str> = sub
+                .captures_iter(t)
+                .map(|m| m.get(1).map_or("", |g| g.as_str()))
+                .collect();
+            if let Some((k, _)) = c.iter().find(|(k, _)| !used.contains(&k.as_str())) {
+                return Err(format!(
+                    "job '{id}' has a custom name over a matrix but does not reference matrix key '{k}', so GitHub's rendered check name cannot be computed as a plain literal"
+                ));
+            }
+        }
         let name = match custom {
             Some(t) => sub
                 .replace_all(t, |caps: &regex::Captures| {

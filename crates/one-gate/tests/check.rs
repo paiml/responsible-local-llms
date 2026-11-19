@@ -724,8 +724,8 @@ fn pr_only_job_named_gate_collides() {
 
 #[test]
 fn matrix_job_producing_one_name_twice_collides() {
-    let y = "on: pull_request\njobs:\n  shadow:\n    name: fixed\n    strategy:\n      matrix:\n        a: [one, two]\n    runs-on: x\n";
-    has(&with_extra(y), "'fixed' is produced more than once");
+    let y = "on: pull_request\njobs:\n  shadow:\n    name: fixed ${{ matrix.a }}\n    strategy:\n      matrix:\n        a: [one, one]\n    runs-on: x\n";
+    has(&with_extra(y), "'fixed one' is produced more than once");
 }
 
 /// 3c: unknown events are RED, not silently neutral.
@@ -1573,4 +1573,82 @@ fn matrix_values_must_be_plain_words() {
         "g ubuntu-22.04\ng Rust_stable\ng e3\n",
         ALLOW,
     ));
+}
+
+// ---- round 9: a matrix job's name must be computable; the required list is a closed set --------
+
+const MAIN_LINT: &str = "name: M\non:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\njobs:\n  real:\n    name: lint (a)\n    runs-on: x\n    steps:\n      - run: make lint\n";
+
+fn refused_matrix_name(job: &str) {
+    let v = run(
+        &[("m.yml", MAIN_LINT), ("p.yml", &pr_only_job(job))],
+        "lint (a)\n",
+        ALLOW,
+    );
+    assert!(v.iter().any(|l| l.contains(CLOSED)), "{job}\n{v:?}");
+    assert!(
+        v.iter()
+            .any(|l| l.contains("does not reference matrix key")),
+        "{job}\n{v:?}"
+    );
+}
+
+fn pr_only_job(job: &str) -> String {
+    format!("on:\n  pull_request:\n    branches: [main]\njobs:\n  shadow:\n{job}    runs-on: x\n    steps:\n      - run: \"true\"\n")
+}
+
+/// Round 8 plant: `lint` over `x: [a]` is `lint (a)` on GitHub, shadowing the real `lint (a)`.
+#[test]
+fn bare_custom_name_over_a_matrix_is_refused() {
+    refused_matrix_name("    name: lint\n    strategy:\n      matrix:\n        x: [a]\n");
+}
+
+#[test]
+fn custom_name_must_reference_every_matrix_key() {
+    refused_matrix_name(
+        "    name: lint ${{ matrix.x }}\n    strategy:\n      matrix:\n        x: [a]\n        y: [b]\n",
+    );
+    refused_matrix_name(
+        "    name: lint\n    strategy:\n      matrix:\n        x: [a]\n        y: [b]\n",
+    );
+}
+
+#[test]
+fn a_caller_name_over_a_matrix_must_reference_it() {
+    let caller = "on: pull_request\njobs:\n  c:\n    name: c\n    strategy:\n      matrix:\n        k: [x]\n    uses: ./.github/workflows/callee.yml\n";
+    let v = run(
+        &[
+            ("ci.yml", GOOD),
+            ("extra.yml", caller),
+            ("callee.yml", CALLEE),
+        ],
+        "gate\n",
+        ALLOW,
+    );
+    has(&v, "does not reference matrix key 'k'");
+}
+
+#[test]
+fn required_list_lines_are_plain_names_byte_for_byte() {
+    for req in [
+        "gate\t\n",
+        " gate\n",
+        "gate \n",
+        "gate\r\n",
+        "gate\n gate\n",
+        "gate\n \n",
+        "gate\n gate # c\n",
+        "gate\ngate\n",
+        "gate\n\u{e9}\n",
+        "gate # note\n",
+        "gate\n  # indented comment\n",
+    ] {
+        let v = run(&[("ci.yml", GOOD)], req, ALLOW);
+        assert!(
+            v.iter()
+                .any(|l| l.contains("required-status-checks.txt line")),
+            "{req:?}\n{v:?}"
+        );
+    }
+    none(run(&[("ci.yml", GOOD)], "# comment\n\ngate\n", ALLOW));
 }

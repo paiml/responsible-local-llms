@@ -33,22 +33,44 @@ const REQUIRED: &str = ".github/required-status-checks.txt";
 const ALLOW: &str = ".github/one-gate-allow.txt";
 const WORKFLOWS: &str = ".github/workflows";
 
-fn read_lines(path: &Path) -> Result<Vec<String>, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    Ok(text
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(str::to_owned)
-        .collect())
+/// The required list, as a closed set: an empty line, a `#` comment starting in column 0, or one
+/// plain check name per line, byte for byte (no edge space, tab, carriage return or duplicate).
+fn read_required(path: &Path) -> Result<Vec<String>, Vec<String>> {
+    let text =
+        std::fs::read_to_string(path).map_err(|e| vec![format!("{}: {e}", path.display())])?;
+    let mut names: Vec<String> = Vec::new();
+    let mut errs = Vec::new();
+    for (n, l) in text.split('\n').enumerate() {
+        if l.is_empty() || l.starts_with('#') {
+            continue;
+        }
+        if !workflow::plain_name(l) {
+            errs.push(format!(
+                "{REQUIRED} line {}: {l:?} is not a plain check name (non-empty, no edge or doubled space, only letters, digits, space and _ . / ( ) , -); a list that cannot be read fails closed",
+                n + 1
+            ));
+        } else if names.iter().any(|x| x == l) {
+            errs.push(format!(
+                "{REQUIRED} line {}: {l:?} is listed twice; a list that cannot be read fails closed",
+                n + 1
+            ));
+        } else {
+            names.push(l.to_owned());
+        }
+    }
+    if errs.is_empty() {
+        Ok(names)
+    } else {
+        Err(errs)
+    }
 }
 
 /// Every violation of the ONE GATE rule in the repository at `root`; empty means PASS.
 pub fn check(root: &Path) -> Vec<String> {
     let mut out = Vec::new();
-    let required: BTreeSet<String> = read_lines(&root.join(REQUIRED))
+    let required: BTreeSet<String> = read_required(&root.join(REQUIRED))
         .unwrap_or_else(|e| {
-            out.push(e);
+            out.extend(e);
             Vec::new()
         })
         .into_iter()
