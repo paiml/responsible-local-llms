@@ -724,7 +724,7 @@ fn pr_only_job_named_gate_collides() {
 
 #[test]
 fn matrix_job_producing_one_name_twice_collides() {
-    let y = "on: pull_request\njobs:\n  shadow:\n    name: fixed\n    strategy:\n      matrix:\n        a: [1, 2]\n    runs-on: x\n";
+    let y = "on: pull_request\njobs:\n  shadow:\n    name: fixed\n    strategy:\n      matrix:\n        a: [one, two]\n    runs-on: x\n";
     has(&with_extra(y), "'fixed' is produced more than once");
 }
 
@@ -840,19 +840,22 @@ fn matrix_ci(strategy: &str, name: &str) -> String {
 
 #[test]
 fn matrix_names_are_rendered() {
-    let ci = matrix_ci("      matrix:\n        os: [a, b]\n        n: [1, 2]", "");
-    let req = "gate (a, 1)\ngate (a, 2)\ngate (b, 1)\ngate (b, 2)\n";
+    let ci = matrix_ci(
+        "      matrix:\n        os: [a, b]\n        n: [one, two]",
+        "",
+    );
+    let req = "gate (a, one)\ngate (a, two)\ngate (b, one)\ngate (b, two)\n";
     none(run(&[("ci.yml", &ci)], req, ALLOW));
-    let v = run(&[("ci.yml", &ci)], "gate (a, 1)\n", ALLOW);
-    has(&v, "check name 'gate (b, 2)', which is not in");
+    let v = run(&[("ci.yml", &ci)], "gate (a, one)\n", ALLOW);
+    has(&v, "check name 'gate (b, two)', which is not in");
     has(&only(&ci), "'gate' but no job renders");
     let named = matrix_ci(
-        "      matrix:\n        os: [a, b]\n        fast: [true]",
+        "      matrix:\n        os: [a, b]\n        fast: [fast]",
         "    name: build ${{ matrix.os }} ${{ matrix.fast }}\n",
     );
     none(run(
         &[("ci.yml", &named)],
-        "build a true\nbuild b true\n",
+        "build a fast\nbuild b fast\n",
         ALLOW,
     ));
     let plain = matrix_ci("      fail-fast: false", "");
@@ -878,7 +881,7 @@ fn names_that_cannot_be_rendered_fail_closed() {
         matrix_ci("      matrix:\n        a: [1]", "    name: g ${{ matrix.zzz }}\n"),
         GOOD.replace("name: gate", "name: ${{ matrix.a }}"),
         GOOD.replace("    steps:", "    strategy: x\n    steps:"),
-        GOOD.replace("    steps:", "    strategy:\n      matrix:\n        a: [1]\n        b: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]\n        c: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]\n    steps:"),
+        GOOD.replace("    steps:", "    strategy:\n      matrix:\n        a: [x]\n        b: [a1,a2,a3,a4,a5,a6,a7,a8,a9,b1,b2,b3,b4,b5,b6,b7,b8]\n        c: [a1,a2,a3,a4,a5,a6,a7,a8,a9,b1,b2,b3,b4,b5,b6,b7]\n    steps:"),
     ] {
         let v = run(&[("ci.yml", &ci)], "gate\n", ALLOW);
         assert!(v.iter().any(|l| l.contains(CLOSED)), "{ci}\n{v:?}");
@@ -896,7 +899,7 @@ fn required_name_produced_by_a_non_pr_job() {
 
 // ---- reusable workflows ----------------------------------------------------------------------
 
-const CALLEE: &str = "on: workflow_call\njobs:\n  inner:\n    runs-on: x\n    steps:\n      - run: true\n  more:\n    name: more ${{ matrix.v }}\n    strategy:\n      matrix:\n        v: [1, 2]\n    runs-on: x\n";
+const CALLEE: &str = "on: workflow_call\njobs:\n  inner:\n    runs-on: x\n    steps:\n      - run: true\n  more:\n    name: more ${{ matrix.v }}\n    strategy:\n      matrix:\n        v: [one, two]\n    runs-on: x\n";
 
 fn caller(uses: &str) -> String {
     format!(
@@ -905,7 +908,7 @@ fn caller(uses: &str) -> String {
 }
 
 const CALLED: &str = "./.github/workflows/callee.yml";
-const CALLED_NAMES: &str = "gate\ncall / inner\ncall / more 1\ncall / more 2\n";
+const CALLED_NAMES: &str = "gate\ncall / inner\ncall / more one\ncall / more two\n";
 
 #[test]
 fn local_callees_render_caller_slash_inner() {
@@ -919,7 +922,7 @@ fn local_callees_render_caller_slash_inner() {
         "gate\ncall / inner\n",
         ALLOW,
     );
-    has(&v, "check name 'call / more 1', which is not in");
+    has(&v, "check name 'call / more one', which is not in");
     let v = run(
         &[("ci.yml", &caller(CALLED)), ("callee.yml", CALLEE)],
         "gate\ncall\ninner\n",
@@ -1122,16 +1125,17 @@ fn unknown_branch_pattern_syntax_is_red() {
 /// name must match its producer exactly.
 #[test]
 fn folded_check_names_collide() {
-    for n in ["'gate '", "' gate'", "Gate", "GATE", "'ga  te'"] {
+    for n in ["Gate", "GATE"] {
         let y = format!(
             "on: pull_request\njobs:\n  shadow:\n    name: {n}\n    runs-on: x\n    steps:\n      - run: true\n"
         );
-        let v = with_extra(&y);
-        if n == "'ga  te'" {
-            none(v);
-        } else {
-            has(&v, "is produced more than once");
-        }
+        has(&with_extra(&y), "is produced more than once");
+    }
+    for n in ["'gate '", "' gate'", "'ga  te'"] {
+        let y = format!(
+            "on: pull_request\njobs:\n  shadow:\n    name: {n}\n    runs-on: x\n    steps:\n      - run: true\n"
+        );
+        has(&with_extra(&y), "not a plain literal");
     }
     let ci = GOOD.replace("name: gate", "name: Gate");
     has(
@@ -1466,4 +1470,107 @@ fn callee_file_names_follow_the_same_form() {
         ),
         "key allow-list",
     );
+}
+
+// ---- round 8: a rendered check name is a closed set, never empty ------------------------------
+
+fn pr_only(job_body: &str) -> String {
+    format!("on:\n  pull_request:\n    branches: [main]\njobs:\n  gate:\n{job_body}    runs-on: x\n    steps:\n      - run: \"true\"\n")
+}
+
+fn refused_name(extra: &str) {
+    let v = with_extra(extra);
+    assert!(v.iter().any(|l| l.contains(CLOSED)), "{extra}\n{v:?}");
+    assert!(
+        v.iter().any(|l| l.contains("not a plain literal")),
+        "{extra}\n{v:?}"
+    );
+}
+
+#[test]
+fn empty_job_name_is_refused() {
+    refused_name(&pr_only("    name: \"\"\n"));
+}
+
+#[test]
+fn blank_job_name_is_refused() {
+    refused_name(&pr_only("    name: \" \"\n"));
+}
+
+#[test]
+fn matrix_rendered_empty_name_is_refused() {
+    let v = with_extra(&pr_only(
+        "    name: ${{ matrix.x }}\n    strategy:\n      matrix:\n        x: [\"\"]\n",
+    ));
+    assert!(v.iter().any(|l| l.contains(CLOSED)), "{v:?}");
+    assert!(v.iter().any(|l| l.contains("not a plain word")), "{v:?}");
+}
+
+#[test]
+fn rendered_names_are_a_closed_set() {
+    for name in [
+        "\"g\u{430}te\"",  // Cyrillic a
+        "\"gate\\u200b\"", // zero-width space
+        "\"gate $\"",      // a lone dollar
+        "\"a | b\"",       // a pipe
+        "\"gate\\t\"",     // tab
+        "\" gate\"",       // edge space
+        "\"a  b\"",        // doubled space
+        "\"gate\\u00a0\"", // no-break space
+        "\"a:b\"",         // colon
+        "\"gate\\nx\"",    // newline
+    ] {
+        let y = format!("on: pull_request\njobs:\n  x:\n    name: {name}\n    runs-on: x\n");
+        let v = with_extra(&y);
+        assert!(v.iter().any(|l| l.contains(CLOSED)), "{name}\n{v:?}");
+    }
+}
+
+#[test]
+fn job_ids_are_a_closed_set() {
+    for id in ["\"my job\"", "\"a.b\"", "\"\"", "\"g\u{430}te\""] {
+        let y = format!("on: pull_request\njobs:\n  {id}:\n    runs-on: x\n");
+        let v = with_extra(&y);
+        assert!(v.iter().any(|l| l.contains(CLOSED)), "{id}\n{v:?}");
+    }
+}
+
+#[test]
+fn a_caller_name_that_renders_empty_is_refused() {
+    let caller =
+        "on: pull_request\njobs:\n  c:\n    name: \"\"\n    uses: ./.github/workflows/callee.yml\n";
+    let v = run(
+        &[
+            ("ci.yml", GOOD),
+            ("extra.yml", caller),
+            ("callee.yml", CALLEE),
+        ],
+        "gate\n",
+        ALLOW,
+    );
+    has(&v, "not a plain literal");
+}
+
+#[test]
+fn matrix_values_must_be_plain_words() {
+    for val in [
+        "0x10", "1.50", "1e3", "010", "true", "1", "null", "yes", "'0x10'", "'1.50'", "'1'",
+        "'yes'", "'On'", "'a b'", "'a:b'", "\"\"", "'-x'", "'.x'", "'a$'", "'\u{e9}'", "inf", "~",
+    ] {
+        let ci = matrix_ci(
+            &format!("      matrix:\n        a: [{val}]"),
+            "    name: g ${{ matrix.a }}\n",
+        );
+        let v = run(&[("ci.yml", &ci)], "g x\n", ALLOW);
+        assert!(v.iter().any(|l| l.contains(CLOSED)), "{val}\n{v:?}");
+    }
+    let ok = matrix_ci(
+        "      matrix:\n        a: [ubuntu-22.04, Rust_stable, e3]",
+        "    name: g ${{ matrix.a }}\n",
+    );
+    none(run(
+        &[("ci.yml", &ok)],
+        "g ubuntu-22.04\ng Rust_stable\ng e3\n",
+        ALLOW,
+    ));
 }

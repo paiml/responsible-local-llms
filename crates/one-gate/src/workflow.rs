@@ -187,11 +187,26 @@ fn continue_on_error(m: &Mapping) -> bool {
 }
 
 fn scalar(v: &Value) -> Result<String, String> {
+    // Quoting is invisible after parsing, and YAML 1.1, 1.2 and GitHub differ on `010`, `0x10`, `1.50`,
+    // `yes` and `~`. So a value is accepted only when it can be read as nothing but a string under every
+    // reading: it starts with a letter, uses only letters, digits and `_ . -`, and is not a YAML
+    // null or boolean word.
+    const WORDS: &[&str] = &[
+        "y", "n", "yes", "no", "on", "off", "true", "false", "null", "inf", "nan",
+    ];
     match v {
-        Value::String(s) if !s.contains("${{") => Ok(s.clone()),
-        Value::Number(n) => Ok(n.to_string()),
-        Value::Bool(b) => Ok(b.to_string()),
-        _ => Err("a matrix value is not a plain string, number or boolean".to_owned()),
+        Value::String(s)
+            if s.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+                && s.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c))
+                && !WORDS.contains(&s.to_ascii_lowercase().as_str()) =>
+        {
+            Ok(s.clone())
+        }
+        _ => Err(
+            "a matrix value is not a plain word (letters first, then letters, digits, _ . -; not a number, boolean or null word)"
+                .to_owned(),
+        ),
     }
 }
 
@@ -234,8 +249,28 @@ fn combos(strategy: &Value) -> Result<Vec<Vec<(String, String)>>, String> {
     Ok(out)
 }
 
+/// The closed set of check names the check understands: non-empty, trimmed, single spaces, and only
+/// letters, digits, space and `_ . / ( ) , -`. Anything else (empty, blank, `${{`, control or
+/// non-ASCII characters) is RED, so no rendered name is guessed at.
+fn plain_name(n: &str) -> bool {
+    !n.is_empty()
+        && n == n.trim_matches(' ')
+        && !n.contains("  ")
+        && n.chars()
+            .all(|c| c.is_ascii_alphanumeric() || " _./(),-".contains(c))
+}
+
 /// The check names of a job: `name` (or the id), matrix expanded.
 fn render_names(id: &str, m: &Mapping) -> Result<Vec<String>, String> {
+    if id.is_empty()
+        || !id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "_-".contains(c))
+    {
+        return Err(format!(
+            "job id {id:?} is not a plain id (letters, digits, _ and -)"
+        ));
+    }
     let custom = match m.get("name") {
         None => None,
         Some(Value::String(s)) => Some(s.as_str()),
@@ -262,9 +297,9 @@ fn render_names(id: &str, m: &Mapping) -> Result<Vec<String>, String> {
                 format!("{id} ({})", vals.join(", "))
             }
         };
-        if name.contains("${{") {
+        if !plain_name(&name) {
             return Err(format!(
-                "job '{id}' has a name that cannot be rendered statically"
+                "job '{id}' has a rendered check name {name:?} that is not a plain literal (non-empty, no edge or doubled space, only letters, digits, space and _ . / ( ) , -)"
             ));
         }
         out.push(name);
