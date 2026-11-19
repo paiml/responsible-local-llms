@@ -9,6 +9,11 @@ fn tree(name: &str, workflow: &str) -> PathBuf {
     std::fs::create_dir_all(root.join(".github/workflows")).unwrap();
     std::fs::write(root.join(".github/workflows/ci.yml"), workflow).unwrap();
     std::fs::write(root.join(".github/required-status-checks.txt"), "gate\n").unwrap();
+    std::fs::write(
+        root.join(".github/one-gate-allow.txt"),
+        "trigger push main\ntrigger pull_request pr\n",
+    )
+    .unwrap();
     root
 }
 

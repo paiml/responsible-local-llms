@@ -47,7 +47,8 @@ live:
 gate: one-gate lint test coverage pv
 
 # ONE GATE (operator ruling 2026-11-19): every job that runs on push to main is a required pull
-# request check. crates/one-gate parses each workflow as YAML and applies the rule to the tree; its
+# request check. crates/one-gate parses each workflow as YAML and decides by a fail-closed allow-list
+# (.github/one-gate-allow.txt, rendered check names, .github/required-status-checks.txt); its
 # tests (cargo test, coverage) hold the evasions. pmat comply has no hook for this today.
 one-gate:
 	cargo run --quiet -p one-gate -- .

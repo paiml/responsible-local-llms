@@ -1,0 +1,13 @@
+# ONE GATE allow-list (operator ruling 2026-11-19). crates/one-gate reads this file; anything
+# it does not find here is RED. Grammar: crates/one-gate/src/allow.rs.
+#
+# Trigger classes. main: can run on main's commits. pr: pull_request. neutral: never gates.
+trigger push main
+trigger workflow_run main
+trigger merge_group main
+trigger pull_request pr
+trigger workflow_dispatch neutral
+trigger workflow_call neutral
+# live.yml is LAB (nightly, cannot block a merge or a release); the schedule is neutral there only.
+trigger schedule neutral live.yml
+# No remote reusable workflow and no job or step `if` is allowed today.
