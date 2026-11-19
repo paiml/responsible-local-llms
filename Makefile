@@ -19,8 +19,7 @@ lint-rust:
 	cargo fmt --all -- --check
 	cargo clippy --workspace --all-targets -- -D warnings
 
-# CI has no shellcheck on the host and never installs one: it runs the pinned
-# image instead (SHELLCHECK_DOCKER=1).
+# CI checks the host has shellcheck 0.10.0 (the version the docker image pinned) and never installs one.
 lint-shell:
 ifeq ($(SHELLCHECK_DOCKER),1)
 	docker run --rm -v "$(CURDIR):/mnt" -w /mnt koalaman/shellcheck-alpine:v0.10.0 sh -c 'shellcheck scripts/*.sh'

@@ -1,0 +1,31 @@
+name: live (nightly LAB)
+
+# LAB check: cannot block a merge or a release, so it never runs in a PR.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: live-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: live
+    runs-on: [self-hosted, Linux, clean-room]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: check docker (checks only)
+        run: docker info
+      - name: test model cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/models
+          key: rll-model-qwen3-0.6b-q4_k_m-ac2d97712095a558
+      - name: live suite (llama.cpp, Ollama)
+        run: make live RUNTIMES="llamacpp ollama"
