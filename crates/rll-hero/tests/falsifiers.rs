@@ -113,3 +113,13 @@ fn no_argument_prints_usage() {
     assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("usage"));
 }
+
+#[test]
+fn help_prints_usage_and_succeeds() {
+    let o = Command::new(env!("CARGO_BIN_EXE_rll-hero"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    assert!(String::from_utf8_lossy(&o.stdout).contains("usage: rll-hero"));
+}

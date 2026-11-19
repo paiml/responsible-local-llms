@@ -18,6 +18,7 @@ fn main() {
                 exit(1);
             }
         },
+        Some("--help") => println!("usage: rll-hero write|check"),
         _ => {
             eprintln!("usage: rll-hero write|check");
             exit(2);
