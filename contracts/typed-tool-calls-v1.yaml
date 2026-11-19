@@ -1,0 +1,69 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 4.1: a tool agent runs only typed tool calls. Model output that does not parse into a ToolCall (prose, an unknown tool, a wrong argument type, a missing field) runs nothing. The model here is RECORDED and illustrative offline; the live leg checks the same invariants."
+  references:
+    - "crates/ch4-agents/src/tool.rs"
+    - "crates/ch4-agents/src/agent.rs"
+    - "crates/ch4-agents/src/bin/lesson1_typed_agent.rs"
+  tags:
+    - agents
+    - tools
+
+equations:
+  typed_only:
+    formula: "run(o) executes a call ⇔ parse(o) = Ok(call); parse(o) = Err ⇒ workspace unchanged"
+    domain: "o: a string of model output"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "only output that parses as a ToolCall is executed"
+      - "refused output leaves the workspace equal to its start"
+      - "offline, the recorded good call runs and every recorded bad output is refused"
+    preconditions:
+      - "the tool set is the closed TOOL_NAMES list"
+    postconditions:
+      - "contract_holds(s) implies no bad output ran and the workspace changed only by the good call"
+
+proof_obligations:
+  - type: invariant
+    property: "Prose is never executed"
+    formal: "parse(prose) = Err ⇒ executed = []"
+    applies_to: typed_only
+
+falsification_tests:
+  - id: FALSIFY-A1-001
+    rule: "Non-typed output is refused"
+    prediction: "Prose, unknown tools and wrong argument types all fail to parse"
+    test: "tool::tests::refuses_everything_that_is_not_a_typed_call"
+    if_fails: "untyped model output can reach a tool"
+  - id: FALSIFY-A1-002
+    rule: "A bad output that runs"
+    prediction: "Marking a bad output as executed makes contract_holds false"
+    test: "agent::tests::contract_fails_when_a_bad_output_runs"
+    if_fails: "the contract no longer checks refusals"
+  - id: FALSIFY-A1-003
+    rule: "A changed workspace"
+    prediction: "A workspace that changed makes contract_holds false"
+    test: "agent::tests::contract_fails_when_the_workspace_changed"
+    if_fails: "the contract no longer checks the workspace"
+  - id: FALSIFY-A1-004
+    rule: "Offline the good call must run"
+    prediction: "No executed call offline makes contract_holds false, but not live"
+    test: "agent::tests::contract_fails_offline_when_the_good_call_did_not_run_but_not_live"
+    if_fails: "the offline demonstration is not enforced"
+  - id: FALSIFY-A1-005
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson1_typed_agent prints 'contract: typed tool calls only OK' for every runtime and exits 0"
+    test: "tests/bins.rs::lesson1_prints_its_contract_for_each_runtime; tests/configured_runtime.rs live"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-A1-001
+  name: "Typed tool calls only"
+  description: "Lesson 4.1 demo contract"
+  checks:
+    - "typed_only"
+  pass_criteria: "All falsification tests pass offline; the bin prints its contract line"
+  status: implemented

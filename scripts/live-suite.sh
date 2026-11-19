@@ -90,6 +90,8 @@ for rt in "${runtimes[@]}"; do
   echo "live-suite: $rt up at $BASE"
   RLL_LIVE=1 RLL_QUANT=q4_k_m RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
     cargo test -q -p ch1-sovereign --test configured_runtime -- --nocapture --test-threads 1
+  RLL_LIVE=1 RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
+    cargo test -q -p ch4-agents --test configured_runtime -- --nocapture --test-threads 1
   echo "live-suite: $rt PASS"
 done
 echo "live-suite: PASS (${runtimes[*]})"

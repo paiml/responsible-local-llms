@@ -10,6 +10,7 @@ One Rust workspace, one test suite, and three local runtimes serving the same mo
 |------|------------|
 | `crates/rll-client` | One OpenAI-compatible chat client. `RLL_RUNTIME=apr\|ollama\|llamacpp` picks the runtime, `RLL_BASE_URL` overrides where it listens. |
 | `crates/ch1-sovereign` | Chapter 1 demos (lessons 2 to 4), each ending in an `assert!` and a `contract: ... OK` line. |
+| `crates/ch4-agents` | Chapter 4 demos (videos 4.1 to 4.5): typed tool agent, local MCP server over loopback, agency limits, human approval with an audit log, tool-abuse evals. Offline, the model is a RECORDED, illustrative answer set; live legs check invariants only. |
 | `crates/ch3-guard` | Chapter 3 demos 3.3 and 3.4: PII and secret redaction (`lesson33_pii_redaction`) and input/output guardrails (`lesson34_guardrails`). Pure text, no runtime; run with `cargo run -p ch3-guard --bin lesson33_pii_redaction`. |
 | `scripts/` | `serve-apr.sh`, `serve-ollama.sh`, `serve-llamacpp.sh`, and the whisper.cpp pipeline for lesson 5. |
 | `evals/` | Test sets as `*.jsonl`: a planned set for each of the six risks of lesson 1.7, and `quantization-quality` for lesson 1.3 (see `evals/README.md`). |
@@ -74,6 +75,11 @@ The same contracts are written down as YAML under `contracts/` and checked by
 | `local-economics-breakeven-v1` | lesson 4: costs are equal at break-even; with none, hosted is cheaper at every volume |
 | `pii-redaction-v1` | lesson 3.3: redaction removes every detected value, is idempotent, leaves clean text alone; log lines hold counts and kinds, never values |
 | `guardrails-v1` | lesson 3.4: each guardrail rule trips on its case and not on its near miss; a filter passes on exactly the redacted text; no log line holds the text |
+| `typed-tool-calls-v1` | lesson 4.1: only output that parses as a typed tool call runs |
+| `mcp-loopback-v1` | lesson 4.2: tools listed and called over loopback MCP; remote addresses refused |
+| `agency-limits-v1` | lesson 4.3: allow-list, jail and dry-run; a refusal changes nothing |
+| `approval-audit-v1` | lesson 4.4: a destructive call needs a yes; the audit log is hash-chained |
+| `tool-output-is-data-v1` | lesson 4.5: injected tool output never widens agency; the benign case still passes |
 | `demo-bin-v1` | every bin: contract docstring, `assert!` before the `contract: ... OK` line |
 
 `make pv` runs `pv lint` (bindings in `contracts/binding.yaml`), the ontology's sigma and shapes

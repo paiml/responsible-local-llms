@@ -1,0 +1,63 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 4.3: agency has limits. An allow-list, a path jail and a dry-run sit between the model and the tool. A refused call changes nothing; a dry-run describes without running; an allowed call lands exactly as written."
+  references:
+    - "crates/ch4-agents/src/agency.rs"
+    - "crates/ch4-agents/src/bin/lesson3_agency_limits.rs"
+  tags:
+    - agents
+    - agency
+
+equations:
+  guarded:
+    formula: "run(call) = Refused ⇒ ws' = ws; run(call) = DryRun ⇒ ws' = ws; run(call) = Executed ⇒ ws' = execute(ws, call)"
+    domain: "policy: allow-list ∧ jail ∧ dry-run flag"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "a tool off the allow-list is refused"
+      - "a path outside the jail is refused"
+      - "a refusal or dry-run never changes the workspace"
+    preconditions:
+      - "the policy is checked before the tool runs"
+    postconditions:
+      - "contract_holds(s) implies one executed call and an unchanged workspace elsewhere"
+
+proof_obligations:
+  - type: invariant
+    property: "Refusal is inert"
+    formal: "Refused ⇒ ws' = ws"
+    applies_to: guarded
+
+falsification_tests:
+  - id: FALSIFY-A3-001
+    rule: "Allow-list and jail"
+    prediction: "A tool off the allow-list and a path escape are both refused"
+    test: "agency::tests::the_allow_list_refuses_a_tool_and_the_jail_refuses_a_path"
+    if_fails: "the guard lets a call through"
+  - id: FALSIFY-A3-002
+    rule: "A refusal changes nothing"
+    prediction: "The workspace is equal after a refused call"
+    test: "agency::tests::a_refusal_changes_nothing"
+    if_fails: "a refused call has a side effect"
+  - id: FALSIFY-A3-003
+    rule: "Each clause can fail"
+    prediction: "Breaking any one clause of the lesson makes contract_holds false"
+    test: "agency::tests::the_lesson_holds_its_contract_and_each_clause_can_fail"
+    if_fails: "contract_holds ignores a clause"
+  - id: FALSIFY-A3-004
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson3_agency_limits prints 'contract: agency has limits OK' and exits 0"
+    test: "tests/bins.rs::lesson3_prints_its_contract"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-A3-001
+  name: "Agency has limits"
+  description: "Lesson 4.3 demo contract"
+  checks:
+    - "guarded"
+  pass_criteria: "All falsification tests pass; the bin prints its contract line"
+  status: implemented

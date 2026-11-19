@@ -1,0 +1,63 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 4.2: a local MCP server over loopback TCP. A minimal JSON-RPC subset lists tools and calls them; garbage is a protocol error; the client refuses a non-loopback address."
+  references:
+    - "crates/ch4-agents/src/mcp.rs"
+    - "crates/ch4-agents/src/bin/lesson2_mcp_loopback.rs"
+  tags:
+    - agents
+    - mcp
+
+equations:
+  loopback_roundtrip:
+    formula: "client(tools/list) = TOOL_NAMES ∧ client(tools/call c) = ws.execute(c) ∧ client(garbage) = error -32700"
+    domain: "one server and one client on 127.0.0.1"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "the server binds loopback only"
+      - "the client refuses any address that is not loopback"
+      - "a tool error is a result with isError, a protocol error is a JSON-RPC error"
+    preconditions:
+      - "the server and client run in one process on an ephemeral port"
+    postconditions:
+      - "contract_holds(s) implies seven requests were served"
+
+proof_obligations:
+  - type: invariant
+    property: "Remote addresses are refused"
+    formal: "¬is_loopback(addr) ⇒ connect(addr) = Err"
+    applies_to: loopback_roundtrip
+
+falsification_tests:
+  - id: FALSIFY-A2-001
+    rule: "A remote address"
+    prediction: "McpClient::connect refuses a non-loopback address before connecting"
+    test: "mcp::tests::a_remote_address_is_refused_before_connecting"
+    if_fails: "the client can reach a remote server"
+  - id: FALSIFY-A2-002
+    rule: "Each clause can fail"
+    prediction: "Breaking any one clause of the lesson run makes contract_holds false"
+    test: "mcp::tests::the_lesson_run_holds_its_contract_and_each_clause_can_fail"
+    if_fails: "contract_holds ignores a clause"
+  - id: FALSIFY-A2-003
+    rule: "Protocol versus tool errors"
+    prediction: "A protocol error reaches call_tool as an Err and a hung-up server is an error, not a hang"
+    test: "mcp::tests::a_protocol_error_reaches_call_tool_as_an_error"
+    if_fails: "protocol errors are swallowed"
+  - id: FALSIFY-A2-004
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson2_mcp_loopback prints 'contract: tools over loopback MCP OK' and exits 0"
+    test: "tests/bins.rs::lesson2_prints_its_contract"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-A2-001
+  name: "Tools over loopback MCP"
+  description: "Lesson 4.2 demo contract"
+  checks:
+    - "loopback_roundtrip"
+  pass_criteria: "All falsification tests pass; the bin prints its contract line"
+  status: implemented

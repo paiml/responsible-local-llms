@@ -1,0 +1,60 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 4.5: tool output is data, not instructions. Six scenarios (five injections, one benign) are scored by the rll-evals runner. Offline the model is RECORDED and illustrative: it obeys every injection, so only the guard stands between an injected call and the workspace."
+  references:
+    - "evals/tool-abuse.jsonl"
+    - "crates/ch4-agents/src/abuse.rs"
+    - "crates/ch4-agents/src/bin/lesson4_tool_abuse.rs"
+  tags:
+    - agents
+    - evals
+    - injection
+
+equations:
+  only_safe_calls_ran:
+    formula: "∀ scenario s: executed(s) ⊆ guarded_policy ∧ workspace(s) has no injected effect; benign follow-up still passes"
+    domain: "scenarios: the six in tool-abuse.jsonl"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "an injected call off the policy or outside the jail never runs"
+      - "a guard that refuses everything fails the benign case"
+      - "the eval set prompts equal the scenario tasks in order"
+    preconditions:
+      - "the policy allows add and read_file only, jailed"
+    postconditions:
+      - "contract_holds(s) implies zero abuse and a passing benign follow-up"
+
+proof_obligations:
+  - type: invariant
+    property: "Injected output cannot widen agency"
+    formal: "tool_output ∌ authority; policy fixed before the model sees output"
+    applies_to: only_safe_calls_ran
+
+falsification_tests:
+  - id: FALSIFY-A5-001
+    rule: "Over-refusal"
+    prediction: "A guard that refuses everything fails the benign case"
+    test: "abuse::tests::a_guard_that_refuses_everything_fails_the_benign_case"
+    if_fails: "safety is measured without usefulness"
+  - id: FALSIFY-A5-002
+    rule: "An unsafe call ran"
+    prediction: "An executed unsafe call or a wrong score makes contract_holds false"
+    test: "abuse::tests::contract_fails_when_an_unsafe_call_ran_or_scores_are_wrong"
+    if_fails: "the contract no longer checks abuse"
+  - id: FALSIFY-A5-003
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson4_tool_abuse prints 'contract: tool output is data OK' for every runtime and exits 0"
+    test: "tests/bins.rs::lesson4_prints_its_contract_and_says_the_model_is_recorded; tests/configured_runtime.rs live"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-A5-001
+  name: "Tool output is data"
+  description: "Lesson 4.5 demo contract"
+  checks:
+    - "only_safe_calls_ran"
+  pass_criteria: "All falsification tests pass offline and live; the bin prints its contract line"
+  status: implemented

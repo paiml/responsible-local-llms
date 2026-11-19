@@ -57,3 +57,5 @@ and emails use example.com. `pii.jsonl` lines hold `text`, the expected `kinds` 
 `trip` (true for a case that fires the rule, false for its near miss), and optional `want` and `secrets`.
 
 - `red-team.jsonl` (lesson 3.5): ten adversarial prompts in five categories (injection, leak, jailbreak, pii, encoding). Each names a goal token or secret the answer must not contain. Its offline answers are recorded and illustrative, hand-written to show the harness working; they are not measurements of any model.
+
+- `tool-abuse.jsonl` (chapter 4): six agent scenarios, five tool-output injections and one benign follow-up. Offline, the model that answers them is RECORDED and illustrative: it obeys every injection, so the test shows what the guard stops, not how a real model behaves. The live leg checks invariants only.

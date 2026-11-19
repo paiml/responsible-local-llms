@@ -226,3 +226,38 @@ bindings:
   signature: 'fn contract_holds(&self) -> bool'
   status: implemented
   notes: Asserted by the lesson5_redteam bin offline and in the live job.
+- contract: typed-tool-calls-v1.yaml
+  equation: typed_only
+  module_path: ch4_agents::agent::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson1_typed_agent bin; falsified by agent::tests.
+- contract: mcp-loopback-v1.yaml
+  equation: loopback_roundtrip
+  module_path: ch4_agents::mcp::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_mcp_loopback bin; falsified by mcp::tests.
+- contract: agency-limits-v1.yaml
+  equation: guarded
+  module_path: ch4_agents::agency::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson3_agency_limits bin; falsified by agency::tests.
+- contract: approval-audit-v1.yaml
+  equation: approved_and_audited
+  module_path: ch4_agents::approval::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson5_approval_audit bin; falsified by approval::tests.
+- contract: tool-output-is-data-v1.yaml
+  equation: only_safe_calls_ran
+  module_path: ch4_agents::abuse::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson4_tool_abuse bin; falsified by abuse::tests.
