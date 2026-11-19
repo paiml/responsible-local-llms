@@ -5,6 +5,7 @@ pub mod economics;
 pub mod quality;
 pub mod quantize;
 pub mod three_runtimes;
+pub mod whisper;
 
 use rll_client::fixtures::Fixture;
 use rll_client::http::HttpTransport;

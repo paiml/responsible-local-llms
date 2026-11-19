@@ -1,0 +1,75 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 1.5: the whisper.cpp shell pipeline. The merged transcript holds one non-empty line per input file, in order, and every bad input is refused before a model is prompted."
+  references:
+    - "scripts/whisper-pipeline.sh"
+    - "scripts/test-whisper-pipeline.sh"
+    - "crates/ch1-sovereign/src/whisper.rs"
+  tags:
+    - whisper
+    - shell
+    - pipeline
+
+equations:
+  merged_one_line_per_file:
+    formula: "lines(merged) = |files| ∧ ∀ i: merged[i] ≠ \"\" ∧ merged[i] = fold(transcript(files[i]))"
+    domain: "files: audio paths that exist; transcript(f): the stdout of the whisper binary for f"
+    codomain: "exit 0 and the line `contract: merged transcript has one non-empty line per file OK`, or a refusal"
+    invariants:
+      - "one merged line per input file, in argument order"
+      - "a whitespace-only transcript counts as empty"
+      - "a missing input is refused (exit 2) before whisper runs"
+      - "no arguments is refused (exit 2) with a usage line"
+      - "an empty transcript is refused (exit 1) and no contract line is printed"
+    preconditions:
+      - "WHISPER_MODEL is set"
+    postconditions:
+      - "exit 0 implies the contract line was printed as the last stdout line"
+      - "exit 0 implies lines(merged) = |files| and every line holds a non-space character"
+
+proof_obligations:
+  - type: invariant
+    property: "An empty transcript never reaches the model"
+    formal: "∃ i: merged[i] = \"\" ⇒ exit ≠ 0 ∧ no contract line"
+    applies_to: merged_one_line_per_file
+  - type: invariant
+    property: "A missing input is refused"
+    formal: "∃ f ∈ files: ¬exists(f) ⇒ exit = 2"
+    applies_to: merged_one_line_per_file
+  - type: invariant
+    property: "Dry-run output has a fixed shape"
+    formal: "dry_run(files) = merged ++ [contract line], |merged| = |files|"
+    applies_to: merged_one_line_per_file
+
+falsification_tests:
+  - id: FALSIFY-W15-001
+    rule: "Empty transcript"
+    prediction: "A whisper stub that prints nothing makes the pipeline exit 1 with 'contract violated' and no contract line"
+    test: "scripts/test-whisper-pipeline.sh: empty transcript refused"
+    if_fails: "the pipeline accepts an empty transcript"
+  - id: FALSIFY-W15-002
+    rule: "Whitespace-only transcript"
+    prediction: "A stub that prints only blanks exits 1"
+    test: "scripts/test-whisper-pipeline.sh: whitespace-only refused"
+    if_fails: "the non-empty check counts blanks as text"
+  - id: FALSIFY-W15-003
+    rule: "Missing input"
+    prediction: "A nonexistent wav exits 2 naming the file, with no stdout"
+    test: "scripts/test-whisper-pipeline.sh: missing input refused"
+    if_fails: "a missing file reaches whisper"
+  - id: FALSIFY-W15-004
+    rule: "Dry-run output shape"
+    prediction: "Two files give exactly two merged lines in order, then the contract line"
+    test: "scripts/test-whisper-pipeline.sh: dry-run output shape"
+    if_fails: "merge order or line count drifted"
+
+qa_gate:
+  id: F-W15-001
+  name: "Whisper pipeline contract"
+  description: "Lesson 1.5 demo contract"
+  checks:
+    - "merged_one_line_per_file"
+  pass_criteria: "scripts/test-whisper-pipeline.sh passes offline with stub whisper and curl; the pipeline prints its contract line"
