@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SUFFIXES:
 .DELETE_ON_ERROR:
 
-.PHONY: test coverage lint lint-rust lint-shell gate
+.PHONY: test coverage lint lint-rust lint-shell pv live gate
 
 # Offline: recorded fixtures only.
 test:
@@ -28,4 +28,20 @@ else
 	shellcheck scripts/*.sh
 endif
 
-gate: lint test coverage
+# Provable contracts and the pv ontology (pv = aprender-contracts-cli, on PATH; never installed here).
+# `pv lint` prints PASS even when one gate fails, so each ontology gate's verdict is read on its own.
+PV_GATES := sigma shapes
+pv:
+	scripts/demo-bins-jsonl.sh --check
+	pv lint contracts --binding contracts/binding.yaml --crate-dir crates/ch1-sovereign
+	@for g in $(PV_GATES); do \
+	  if pv lint contracts --gate $$g --format json | grep -q '^  "verdict": "Pass"'; then \
+	    echo "pv gate $$g: Pass"; else echo "pv gate $$g: FAIL"; exit 1; fi; \
+	done
+	pv extract contracts --check
+
+# Live: real local runtimes (llama.cpp and Ollama from pinned images, apr if on PATH).
+live:
+	scripts/live-suite.sh $(RUNTIMES)
+
+gate: lint test coverage pv

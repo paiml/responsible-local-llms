@@ -1,0 +1,71 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 1.3: file size follows bits per weight, and speed is measured, never assumed."
+  references:
+    - "crates/ch1-sovereign/src/quantize.rs"
+    - "crates/ch1-sovereign/src/bin/lesson3_quantize.rs"
+  tags:
+    - quantization
+    - measurement
+
+equations:
+  size_bytes:
+    formula: "size(P, b) = P · b / 8"
+    domain: "P: parameter count > 0, b: bits per weight > 0"
+    codomain: "size ∈ (0, ∞) bytes"
+    invariants:
+      - "size is linear in bits per weight"
+      - "size(P, 4.85) < size(P, 8.5) < size(P, 16.0) (q4_k_m < q8_0 < f16)"
+    preconditions:
+      - "params > 0.0 && bits_per_weight > 0.0"
+    postconditions:
+      - "result == params * bits_per_weight / 8.0"
+  measured_speed:
+    formula: "tps = completion_tokens / elapsed_seconds"
+    domain: "one completion from the configured runtime"
+    codomain: "tps ∈ (0, ∞)"
+    invariants:
+      - "tps is finite and positive"
+    preconditions:
+      - "completion_tokens > 0"
+    postconditions:
+      - "tokens_per_second.is_finite() && tokens_per_second > 0.0"
+
+proof_obligations:
+  - type: monotonicity
+    property: "Smaller quantization is a smaller file"
+    formal: "b1 < b2 ⇒ size(P, b1) < size(P, b2)"
+    applies_to: size_bytes
+  - type: invariant
+    property: "Speed is a real measured number"
+    formal: "contract_holds(s) ⇒ isfinite(s.tps) ∧ s.tps > 0"
+    applies_to: measured_speed
+
+falsification_tests:
+  - id: FALSIFY-L3-001
+    rule: "Size is linear in bits"
+    prediction: "size_bytes(8, 8) = 8 and size_bytes(1e9, 4) = 5e8"
+    test: "quantize::tests::size_is_linear_in_bits"
+    if_fails: "the size formula changed"
+  - id: FALSIFY-L3-002
+    rule: "Unsorted sizes or a bad speed break the contract"
+    prediction: "contract_holds is false for descending sizes, zero speed and NaN speed"
+    test: "quantize::tests::contract_rejects_unsorted_sizes_and_bad_speed"
+    if_fails: "contract_holds no longer checks order or speed"
+  - id: FALSIFY-L3-003
+    rule: "Bin enforces the contract on every runtime"
+    prediction: "lesson3_quantize prints its contract line for apr, ollama and llamacpp"
+    test: "tests/bins.rs::lesson3_prints_its_contract_for_each_runtime; tests/configured_runtime.rs live"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L3-001
+  name: "Quantize size and speed"
+  description: "Lesson 1.3 demo contract"
+  checks:
+    - "size_bytes"
+    - "measured_speed"
+  pass_criteria: "All falsification tests pass offline and against a live runtime"

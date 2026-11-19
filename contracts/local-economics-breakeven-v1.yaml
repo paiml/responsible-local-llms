@@ -1,0 +1,85 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 1.4: at the break-even volume local and hosted cost the same; hosted wins below it, local wins above it."
+  references:
+    - "crates/ch1-sovereign/src/economics.rs"
+    - "crates/ch1-sovereign/src/bin/lesson4_economics.rs"
+  tags:
+    - economics
+    - cost
+
+equations:
+  breakeven:
+    formula: "m* = F / (h − e), where F = hardware / lifetime_months, e = watts · (1e6 / tps) / 3.6e6 · kwh_price, h = hosted price per Mtok"
+    domain: "h > e (hosted price per Mtok exceeds local energy per Mtok)"
+    codomain: "m* ∈ (0, ∞) Mtok per month, or none when h ≤ e"
+    invariants:
+      - "local(m*) = hosted(m*)"
+      - "hosted(m*/2) < local(m*/2)"
+      - "local(2·m*) < hosted(2·m*)"
+    preconditions:
+      - "lifetime_months > 0.0 && tokens_per_second > 0.0"
+    postconditions:
+      - "(local_cost(m) - hosted_cost(m)).abs() < 1e-6"
+  idle_waste:
+    formula: "w = gpu_price_per_hour · (24 − busy_hours) · 30"
+    domain: "busy_hours ∈ [0, 24]"
+    codomain: "w ∈ [0, ∞) USD per month"
+    invariants:
+      - "w = 0 when the GPU is busy 24 hours a day"
+    postconditions:
+      - "idle_waste_usd() >= 0.0"
+
+proof_obligations:
+  - type: equivalence
+    property: "Break-even equalizes the two costs"
+    formal: "local(m*) = hosted(m*)"
+    tolerance: 1.0e-6
+    applies_to: breakeven
+  - type: invariant
+    property: "No break-even when energy alone costs more than hosted"
+    formal: "h ≤ e ⇒ breakeven = none"
+    applies_to: breakeven
+  - type: invariant
+    property: "With no break-even, hosted is cheaper at every volume"
+    formal: "breakeven = none ⇒ hosted(m) < local(m) for m ∈ {1, 1e6}"
+    applies_to: breakeven
+
+falsification_tests:
+  - id: FALSIFY-L4-001
+    rule: "Break-even equalizes costs"
+    prediction: "For hand-computed inputs m* = 10 and local(10) = hosted(10)"
+    test: "economics::tests::breakeven_equalizes_costs"
+    if_fails: "the break-even formula changed"
+  - id: FALSIFY-L4-002
+    rule: "No break-even"
+    prediction: "A hosted price below energy cost gives none"
+    test: "economics::tests::no_breakeven_when_energy_exceeds_the_hosted_price"
+    if_fails: "breakeven_mtok no longer checks the margin"
+  - id: FALSIFY-L4-003
+    rule: "Energy matches hand arithmetic"
+    prediction: "1e6 tokens at 10 tok/s and 360 W at 0.10 USD/kWh cost 1.00 USD"
+    test: "economics::tests::energy_matches_hand_arithmetic"
+    if_fails: "unit conversion broke"
+  - id: FALSIFY-L4-005
+    rule: "Slow hardware never breaks even"
+    prediction: "At 0.001 tok/s there is no break-even and the contract still holds (hosted is cheaper)"
+    test: "economics::tests::contract_holds_when_slow_hardware_never_breaks_even"
+    if_fails: "contract_holds refuses a measured machine that is simply too slow, as a live run at 3 tok/s once did"
+  - id: FALSIFY-L4-004
+    rule: "Bin enforces the contract"
+    prediction: "lesson4_economics prints 'contract: break-even is exact OK' offline and live"
+    test: "tests/bins.rs::lesson4_prints_its_contract; tests/configured_runtime.rs::lesson4_contract_holds_on_the_configured_runtime"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L4-001
+  name: "Local economics break-even"
+  description: "Lesson 1.4 demo contract"
+  checks:
+    - "breakeven"
+    - "idle_waste"
+  pass_criteria: "All falsification tests pass offline and against a live runtime"

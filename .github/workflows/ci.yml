@@ -29,3 +29,19 @@ jobs:
         run: make test
       - name: coverage
         run: make coverage
+      - name: provable contracts (pv)
+        run: make pv
+
+  live:
+    name: live
+    runs-on: [self-hosted, Linux, clean-room]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: test model cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/models
+          key: rll-model-qwen3-0.6b-q4_k_m-ac2d97712095a558
+      - name: live suite (llama.cpp, Ollama)
+        run: make live RUNTIMES="llamacpp ollama"

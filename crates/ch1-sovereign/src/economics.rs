@@ -56,11 +56,15 @@ pub struct Summary {
 
 impl Summary {
     /// At break-even the two costs match; below it hosted wins, above it local wins.
+    /// With no break-even (slow hardware: energy per token costs more than the hosted
+    /// price), hosted must be cheaper at every volume, small and large.
     pub fn contract_holds(&self) -> bool {
+        let i = &self.inputs;
         match self.breakeven {
-            None => false,
+            None => [1.0, 1e6]
+                .iter()
+                .all(|&v| i.hosted_cost(v) < i.local_cost(v)),
             Some(m) => {
-                let i = &self.inputs;
                 (i.local_cost(m) - i.hosted_cost(m)).abs() < 1e-6
                     && i.hosted_cost(m * 0.5) < i.local_cost(m * 0.5)
                     && i.local_cost(m * 2.0) < i.hosted_cost(m * 2.0)
@@ -194,6 +198,15 @@ mod tests {
             breakeven: None,
         };
         assert!(!s.contract_holds());
+    }
+
+    #[test]
+    fn contract_holds_when_slow_hardware_never_breaks_even() {
+        let mut i = inputs();
+        i.tokens_per_second = 0.001;
+        let s = summarize(i, &mut Vec::new());
+        assert_eq!(s.breakeven, None);
+        assert!(s.contract_holds());
     }
 
     #[test]

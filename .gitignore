@@ -1,2 +1,4 @@
 /target
 *.gguf
+.pv/
+/.cache/

@@ -1,6 +1,6 @@
 //! Lesson 1.4: local economics.
 //!
-//! Provable contract: at the computed break-even volume local and hosted cost are equal, hosted is cheaper below it and local is cheaper above it.
+//! Provable contract: at the computed break-even volume local and hosted cost are equal, hosted is cheaper below it and local is cheaper above it; with no break-even, hosted is cheaper at every volume.
 //!
 //! Offline by default (recorded fixtures); `RLL_LIVE=1` talks to real runtimes.
 

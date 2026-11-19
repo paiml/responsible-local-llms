@@ -1,0 +1,61 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 1.2: one model, three runtimes. apr, Ollama and llama.cpp answer the same request with the same fact."
+  references:
+    - "crates/ch1-sovereign/src/three_runtimes.rs"
+    - "crates/ch1-sovereign/src/bin/lesson2_three_runtimes.rs"
+  tags:
+    - runtimes
+    - agreement
+
+equations:
+  runtimes_agree:
+    formula: "|answers| = |Runtime::ALL| ∧ ∀ (r, c) ∈ answers: c.content ≠ \"\" ∧ \"Paris\" ⊂ c.content"
+    domain: "answers: one Completion per runtime in Runtime::ALL for PROMPT"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "every runtime in Runtime::ALL answered exactly once"
+      - "every answer names the same city"
+    preconditions:
+      - "Runtime::ALL.len() == 3"
+    postconditions:
+      - "summary.contract_holds() implies summary.answers.len() == 3"
+      - "summary.contract_holds() implies summary.answers.iter().all(|(_, c)| c.content.contains(\"Paris\"))"
+
+proof_obligations:
+  - type: invariant
+    property: "No runtime is skipped"
+    formal: "contract_holds(s) ⇒ |s.answers| = 3"
+    applies_to: runtimes_agree
+  - type: invariant
+    property: "A wrong answer breaks the contract"
+    formal: "∃ (r, c): \"Paris\" ⊄ c.content ⇒ ¬contract_holds(s)"
+    applies_to: runtimes_agree
+
+falsification_tests:
+  - id: FALSIFY-L2-001
+    rule: "Missing runtime"
+    prediction: "Dropping one answer makes contract_holds false"
+    test: "three_runtimes::tests::contract_fails_when_a_runtime_is_missing"
+    if_fails: "contract_holds no longer counts runtimes"
+  - id: FALSIFY-L2-002
+    rule: "Wrong answer"
+    prediction: "Replacing one answer with Lyon makes contract_holds false"
+    test: "three_runtimes::tests::contract_fails_on_a_wrong_answer"
+    if_fails: "contract_holds no longer checks the content"
+  - id: FALSIFY-L2-003
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson2_three_runtimes prints 'contract: three runtimes agree OK' and exits 0"
+    test: "tests/bins.rs::lesson2_prints_its_contract"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L2-001
+  name: "Three runtimes agree"
+  description: "Lesson 1.2 demo contract"
+  checks:
+    - "runtimes_agree"
+  pass_criteria: "All falsification tests pass offline; the bin prints its contract line"

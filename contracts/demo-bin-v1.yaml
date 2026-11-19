@@ -1,0 +1,61 @@
+# demo-bin-v1: every demo bin carries a runtime-enforced provable contract.
+# pv's shapes gate validates RDF built by the json extractor, one node per JSONL line.
+# scripts/demo-bins-jsonl.sh DERIVES evidence/demo-bins.jsonl from crates/*/src/bin/*.rs;
+# `--check` fails on drift, so the JSONL is never hand-edited.
+name: demo-bin-v1
+version: 1.0.0
+scope: crates/*/src/bin/*.rs (via evidence/demo-bins.jsonl)
+status: active
+metadata:
+  author: PAIML Engineering
+  created: '2026-11-19'
+  last_modified: '2026-11-19'
+  version: 1.0.0
+  kind: pattern
+  description: >
+    A demo bin states a Provable contract in its docstring, asserts it at the end of main,
+    and prints `contract: ... OK` only after the assert holds.
+  references:
+    - 'scripts/demo-bins-jsonl.sh: the derivation'
+    - 'crates/ch1-sovereign/tests/bins.rs: runs every bin and reads its contract line'
+
+entity:
+  type: json
+  ref: evidence/demo-bins.jsonl
+
+vocabulary:
+  prefix: demo
+  root_class: demo:DemoBin
+
+shape:
+  targetClass: demo:DemoBin
+  closed: true
+  properties:
+    - {path: demo:id, minCount: 1, maxCount: 1, datatype: xsd:string, pattern: "^lesson[0-9]+_[a-z0-9_]+$"}
+    - {path: demo:crate, minCount: 1, maxCount: 1, datatype: xsd:string, pattern: "^ch[0-9]+-[a-z0-9-]+$"}
+    - {path: demo:source, minCount: 1, maxCount: 1, datatype: xsd:string, pattern: "^crates/.+/src/bin/.+\\.rs$"}
+    - {path: demo:has_contract_doc, minCount: 1, maxCount: 1, in: [true]}
+    - {path: demo:asserts_contract, minCount: 1, maxCount: 1, in: [true]}
+    - {path: demo:prints_contract_ok, minCount: 1, maxCount: 1, in: [true]}
+    - {path: demo:assert_before_ok, minCount: 1, maxCount: 1, in: [true]}
+
+equations:
+  demo_bin_valid:
+    formula: "∀ b ∈ DemoBin: doc(b) ∧ asserts(b) ∧ prints_ok(b) ∧ line(assert(b)) < line(ok(b))"
+    domain: "every bin under crates/*/src/bin/, derived into evidence/demo-bins.jsonl"
+    codomain: "conforms, or a violation naming the bin and the failing property"
+    invariants:
+      - "the derived JSONL equals what the bins derive (demo-bins-jsonl.sh --check)"
+
+invariants:
+  - id: DBV-INV-001
+    description: Every demo bin row conforms to the shape; a violation names the bin.
+  - id: DBV-INV-002
+    description: evidence/demo-bins.jsonl is derived, never hand-edited; any drift fails --check.
+
+falsification_tests:
+  - id: FALSIFY-DBV-001
+    rule: "A bin without its contract line"
+    prediction: "Removing the println! makes prints_contract_ok false and the shapes gate fails"
+    test: "scripts/demo-bins-jsonl.sh then pv lint contracts --gate shapes"
+    if_fails: "the shape no longer requires the contract line"
