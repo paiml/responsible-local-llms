@@ -10,8 +10,10 @@ One Rust workspace, one test suite, and three local runtimes serving the same mo
 |------|------------|
 | `crates/rll-client` | One OpenAI-compatible chat client. `RLL_RUNTIME=apr\|ollama\|llamacpp` picks the runtime, `RLL_BASE_URL` overrides where it listens. |
 | `crates/ch1-sovereign` | Chapter 1 demos (lessons 2 to 4), each ending in an `assert!` and a `contract: ... OK` line. |
+| `crates/ch3-guard` | Chapter 3 demos 3.3 and 3.4: PII and secret redaction (`lesson33_pii_redaction`) and input/output guardrails (`lesson34_guardrails`). Pure text, no runtime; run with `cargo run -p ch3-guard --bin lesson33_pii_redaction`. |
 | `scripts/` | `serve-apr.sh`, `serve-ollama.sh`, `serve-llamacpp.sh`, and the whisper.cpp pipeline for lesson 5. |
 | `evals/` | Test sets as `*.jsonl`: a planned set for each of the six risks of lesson 1.7, and `quantization-quality` for lesson 1.3 (see `evals/README.md`). |
+| `evals/` | Test sets as `*.jsonl` (filled in from chapter 2). `pii.jsonl` and `guardrails.jsonl` (chapter 3) hold hand-written synthetic strings, each labelled `"source":"illustrative"`: examples of the shapes, not measurements of any model. |
 
 ## Run it offline
 
@@ -70,6 +72,8 @@ The same contracts are written down as YAML under `contracts/` and checked by
 | `quantize-size-speed-v1` | lesson 3: size grows with bits per weight; measured tokens/s is finite and positive |
 | `quantization-quality-v1` | lesson 3 (quality): each quantization level is scored on one fixed case set; a case passes only with every required property |
 | `local-economics-breakeven-v1` | lesson 4: costs are equal at break-even; with none, hosted is cheaper at every volume |
+| `pii-redaction-v1` | lesson 3.3: redaction removes every detected value, is idempotent, leaves clean text alone; log lines hold counts and kinds, never values |
+| `guardrails-v1` | lesson 3.4: each guardrail rule trips on its case and not on its near miss; a filter passes on exactly the redacted text; no log line holds the text |
 | `demo-bin-v1` | every bin: contract docstring, `assert!` before the `contract: ... OK` line |
 
 `make pv` runs `pv lint` (bindings in `contracts/binding.yaml`), the ontology's sigma and shapes

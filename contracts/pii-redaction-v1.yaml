@@ -1,0 +1,82 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 3.3: redaction removes every detected PII value and secret, is idempotent, and leaves clean text unchanged; log lines carry counts and kinds, never values."
+  references:
+    - "crates/ch3-guard/src/pii.rs"
+    - "crates/ch3-guard/src/pii_demo.rs"
+    - "crates/ch3-guard/src/bin/lesson33_pii_redaction.rs"
+    - "evals/pii.jsonl"
+  tags:
+    - safety
+    - pii
+
+equations:
+  redact_removes_findings:
+    formula: "∀ t: detect(redact(t)) = ∅, and no value v ∈ detect(t) occurs in redact(t) or in log_line(t)"
+    domain: "t is any UTF-8 text; detection covers email, ssn, card (Luhn), phone, ipv4 and api_key spans"
+    codomain: "the text with each finding replaced by its placeholder"
+    invariants:
+      - "redact(redact(t)) = redact(t)"
+      - "detect(t) = ∅ ⇒ redact(t) = t"
+    postconditions:
+      - "findings are ordered and do not overlap"
+  log_line_carries_no_values:
+    formula: "log_line(t) = chars(t), |detect(t)| and the kinds, and contains no substring of a finding"
+    domain: "any text"
+    codomain: "one line: prompt chars=N findings=K kinds=a,b"
+    invariants:
+      - "the line has no byte of a detected value"
+
+proof_obligations:
+  - type: invariant
+    property: "Redaction is idempotent"
+    formal: "redact(redact(t)) = redact(t)"
+    applies_to: redact_removes_findings
+  - type: invariant
+    property: "A log line never holds a detected value"
+    formal: "∀ f ∈ detect(t): t[f] ∉ log_line(t)"
+    applies_to: log_line_carries_no_values
+
+falsification_tests:
+  - id: FALSIFY-L33-001
+    rule: "Each kind is detected and its near misses are not"
+    prediction: "Impossible SSNs, bad-Luhn numbers, short keys, 256.x addresses and 'a@b' are not findings"
+    test: "pii::tests::ssn_rules_refuse_impossible_numbers; pii::tests::card_needs_luhn_and_length; pii::tests::ipv4_octets_are_bounded; pii::tests::api_keys_by_prefix_and_length; pii::tests::finds_an_email_and_rejects_near_misses"
+    if_fails: "a detector accepts or misses a shape it should not"
+  - id: FALSIFY-L33-002
+    rule: "A wrong redaction is caught"
+    prediction: "A sample whose expected redaction differs from the real one is a mismatch and the contract fails"
+    test: "pii_demo::tests::falsifier_a_wrong_redaction_is_a_mismatch"
+    if_fails: "the demo compares nothing"
+  - id: FALSIFY-L33-003
+    rule: "A redactor that does nothing leaks"
+    prediction: "An identity redactor leaves every value in the output and the leak count is above zero"
+    test: "pii_demo::tests::falsifier_a_redactor_that_does_nothing_leaks"
+    if_fails: "the leak check cannot see a value that survives"
+  - id: FALSIFY-L33-004
+    rule: "A non-idempotent redactor is caught"
+    prediction: "A redactor that appends text on every pass fails the idempotence check"
+    test: "pii_demo::tests::falsifier_a_non_idempotent_redactor_is_caught"
+    if_fails: "idempotence is not enforced"
+  - id: FALSIFY-L33-005
+    rule: "A set that skips a kind or clean text fails"
+    prediction: "One correct sample is not enough: five kinds and the clean text are unexercised"
+    test: "pii_demo::tests::falsifier_a_set_missing_a_kind_or_clean_text_fails"
+    if_fails: "the contract passes on a set that covers one kind"
+  - id: FALSIFY-L33-006
+    rule: "Bin enforces the contract"
+    prediction: "lesson33_pii_redaction prints 'contract: PII is redacted exactly and never logged OK'"
+    test: "tests/bins.rs::lesson33_prints_its_contract"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L33-001
+  name: "PII redaction"
+  description: "Lesson 3.3 demo contract"
+  checks:
+    - "redact_removes_findings"
+    - "log_line_carries_no_values"
+  pass_criteria: "All falsification tests pass offline"
