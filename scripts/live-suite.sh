@@ -7,6 +7,7 @@
 #   apr               runs scripts/serve-apr.sh (needs `apr` on PATH)
 # Env: RLL_QUANT (set to q4_k_m here: the cached model) labels the lesson3_quality score.
 #      RLL_MODEL_DIR  where the test model is cached (default .cache/models)
+#      RLL_APR_LOG    file for the apr server output (default /dev/null)
 #
 # A runtime that cannot start fails the run with a message naming what is missing.
 # Lesson 1.2 asks all three runtimes in one run, so the suite always needs all three up at
@@ -83,7 +84,7 @@ base_url() { # runtime -> sets BASE
       docker exec "rll-ollama-$$" sh -c "printf 'FROM /tmp/model.gguf\n' > /tmp/Modelfile && ollama create $MODEL_NAME -f /tmp/Modelfile" >/dev/null ;;
     apr)
       need apr "the apr leg runs scripts/serve-apr.sh"
-      GGUF=$gguf RLL_APR_PORT=18081 scripts/serve-apr.sh >/dev/null 2>&1 &
+      GGUF=$gguf RLL_APR_PORT=18081 scripts/serve-apr.sh >"${RLL_APR_LOG:-/dev/null}" 2>&1 &
       pids+=("$!")
       BASE=http://127.0.0.1:18081
       wait_up "$BASE/v1/models" "apr" ;;
