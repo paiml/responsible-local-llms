@@ -103,7 +103,7 @@ done
 if [ -n "${urls[apr]:-}" ] && [ -n "${urls[ollama]:-}" ] && [ -n "${urls[llamacpp]:-}" ]; then
   RLL_LIVE=1 RLL_MODEL=$MODEL_NAME RLL_BASE_URL_APR=${urls[apr]} RLL_BASE_URL_OLLAMA=${urls[ollama]} \
     RLL_BASE_URL_LLAMACPP=${urls[llamacpp]} \
-    cargo test -q -p ch1-sovereign --test configured_runtime lesson2_three_runtimes -- --nocapture --test-threads 1
+    cargo test -q -p ch1-sovereign --test three_runtimes_live -- --nocapture --test-threads 1
   echo "live-suite: lesson 1.2 PASS (all three runtimes at once)"
 else
   echo "live-suite: lesson 1.2 skipped (needs apr, ollama and llamacpp in one run)"

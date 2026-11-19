@@ -32,12 +32,3 @@ fn lesson3_quality_holds_on_the_configured_runtime() {
     let out = run_inheriting_env(env!("CARGO_BIN_EXE_lesson3_quality"));
     assert!(out.contains("contract: quality is measured per quantization level OK"));
 }
-
-/// Lesson 1.2 asks all three runtimes at once, so it reads `RLL_BASE_URL_APR`, `_OLLAMA` and
-/// `_LLAMACPP`. The live suite sets them once all three are up; this test is what turns the
-/// suite red when a runtime answers with an empty reply (issue #55).
-#[test]
-fn lesson2_three_runtimes_agree_on_the_configured_runtimes() {
-    let out = run_inheriting_env(env!("CARGO_BIN_EXE_lesson2_three_runtimes"));
-    assert!(out.contains("contract: three runtimes agree OK"));
-}
