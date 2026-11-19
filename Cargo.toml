@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/rll-client", "crates/ch1-sovereign"]
+members = ["crates/rll-client", "crates/ch1-sovereign", "crates/rll-evals", "crates/ch2-evals"]
 
 [workspace.package]
 version = "0.1.0"
@@ -12,3 +12,5 @@ publish = false
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rll-client = { path = "crates/rll-client" }
+rll-evals = { path = "crates/rll-evals" }
+ch1-sovereign = { path = "crates/ch1-sovereign" }

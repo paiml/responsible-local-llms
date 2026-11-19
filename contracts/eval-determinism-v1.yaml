@@ -1,0 +1,91 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 2.4: determinism and flakiness. A pass rate over fixed seeds is a measurement; one run is an anecdote. The same seeds and temperature repeat exactly, and greedy decoding is all or nothing."
+  references:
+    - "crates/rll-evals/src/runner.rs"
+    - "crates/ch2-evals/src/flakiness.rs"
+    - "crates/ch2-evals/src/bin/lesson4_flakiness.rs"
+  tags:
+    - evals
+    - determinism
+    - flakiness
+
+equations:
+  pass_rate:
+    formula: "rate(c) = passes(c) / |seeds|, passes(c) = |{ s ∈ seeds : check(c, answer(c.prompt, s, T)) = [] }|"
+    domain: "cases: |cases| ≥ 1, seeds: |seeds| ≥ 1, T: temperature"
+    codomain: "rate ∈ [0, 1] per case"
+    invariants:
+      - "every case is tried once per seed"
+      - "an empty case list or an empty seed list is refused"
+    preconditions:
+      - "|cases| ≥ 1 ∧ |seeds| ≥ 1"
+    postconditions:
+      - "report.cases.len() == cases.len()"
+      - "every case has trials == seeds.len()"
+  repeatable:
+    formula: "run(cases, M, seeds, T) = run(cases, M, seeds, T); T = 0 ⇒ ∀ c: rate(c) ∈ {0, 1}"
+    domain: "M: a responder, seeds fixed, T: temperature"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "the same seeds and temperature give an equal report"
+      - "greedy decoding (T = 0) gives pass rates of 0 or 1 only"
+      - "offline, sampling gives at least one case with 0 < rate < 1"
+    preconditions:
+      - "seeds are the fixed SEEDS list"
+    postconditions:
+      - "contract_holds(s) implies s.greedy == s.greedy_again and s.sampled == s.sampled_again"
+
+proof_obligations:
+  - type: invariant
+    property: "A pass rate needs trials"
+    formal: "|seeds| = 0 ⇒ run = Err"
+    applies_to: pass_rate
+  - type: invariant
+    property: "Greedy decoding repeats exactly"
+    formal: "contract_holds(s) ⇒ ∀ c ∈ s.greedy.cases: passes ∈ {0, trials}"
+    applies_to: repeatable
+
+falsification_tests:
+  - id: FALSIFY-E4-001
+    rule: "Empty inputs"
+    prediction: "No cases or no seeds is an Err, never a division by zero"
+    test: "runner::tests::empty_inputs_are_refused"
+    if_fails: "run divides by zero or reports on nothing"
+  - id: FALSIFY-E4-002
+    rule: "A repeat that differs"
+    prediction: "Changing the repeat of a sampled or greedy report makes contract_holds false"
+    test: "flakiness::tests::contract_fails_when_a_repeat_differs"
+    if_fails: "contract_holds no longer compares the repeats"
+  - id: FALSIFY-E4-003
+    rule: "Greedy not all or nothing"
+    prediction: "A fractional greedy pass rate makes contract_holds false"
+    test: "flakiness::tests::contract_fails_when_greedy_is_not_all_or_nothing"
+    if_fails: "contract_holds no longer checks greedy rates"
+  - id: FALSIFY-E4-004
+    rule: "Sampling never flakes offline"
+    prediction: "A sampled report with no flaky case makes the offline contract false, and true when require_flaky is off (live)"
+    test: "flakiness::tests::contract_fails_when_sampling_never_flakes_offline_but_not_live"
+    if_fails: "the offline flakiness demonstration is not enforced"
+  - id: FALSIFY-E4-005
+    rule: "Different seeds change the report"
+    prediction: "Two seed lists give different reports at temperature 0.8"
+    test: "runner::tests::different_seeds_can_change_the_report"
+    if_fails: "the seed no longer reaches the responder"
+  - id: FALSIFY-E4-006
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson4_flakiness prints 'contract: pass rates, not single runs OK' for every runtime and exits 0"
+    test: "tests/bins.rs::lesson4_prints_its_contract_for_each_runtime; tests/configured_runtime.rs live"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-E4-001
+  name: "Pass rates, not single runs"
+  description: "Lesson 2.4 demo contract"
+  checks:
+    - "pass_rate"
+    - "repeatable"
+  pass_criteria: "All falsification tests pass offline and against a live runtime; the bin prints its contract line"

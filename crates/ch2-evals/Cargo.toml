@@ -1,0 +1,12 @@
+[package]
+name = "ch2-evals"
+description = "Chapter 2 demos: a test set is a spec, and pass rates beat single runs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ch1-sovereign.workspace = true
+rll-client.workspace = true
+rll-evals.workspace = true
