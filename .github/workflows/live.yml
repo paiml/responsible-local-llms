@@ -16,7 +16,7 @@ permissions:
 jobs:
   live:
     name: live
-    runs-on: [self-hosted, Linux, clean-room]
+    runs-on: [self-hosted, Linux, ARM64, gx10, docker]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
