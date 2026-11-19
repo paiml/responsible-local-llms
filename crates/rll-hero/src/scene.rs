@@ -4,7 +4,10 @@
 //! lesson 4 measures live.
 
 use crate::canvas::*;
-use ch1_sovereign::{economics::Inputs, quantize};
+use ch1_sovereign::{
+    economics::{self, Inputs},
+    quantize,
+};
 use ch2_evals::elo;
 use ch3_redteam::redteam::{self, CategoryRow};
 use rll_client::{Config, Runtime};
@@ -28,16 +31,7 @@ pub fn gather() -> Data {
         .iter()
         .map(|&(name, bits)| (name, quantize::size_bytes(PARAMS, bits)))
         .collect();
-    let inputs = Inputs {
-        hardware_usd: 2400.0,
-        lifetime_months: 36.0,
-        watts: 250.0,
-        kwh_usd: 0.15,
-        hosted_usd_per_mtok: 3.0,
-        tokens_per_second: TOKENS_PER_SECOND,
-        rented_gpu_usd_per_hour: 2.0,
-        busy_hours_per_day: 4.0,
-    };
+    let inputs = economics::course_inputs(TOKENS_PER_SECOND);
     let ratings = elo::run(&mut Vec::new())
         .expect("elo demo runs offline")
         .ratings;
