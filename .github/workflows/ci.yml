@@ -17,7 +17,7 @@ permissions:
 jobs:
   gate:
     name: gate
-    runs-on: [self-hosted, clean-room, X64, ffmpeg]
+    runs-on: [self-hosted, Linux, ARM64, gx10, docker]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -37,18 +37,14 @@ jobs:
           fi
           command -v cargo >/dev/null 2>&1 && cargo --version || need cargo "not on PATH"
           cargo llvm-cov --version 2>/dev/null || need "cargo llvm-cov" "cargo-llvm-cov not installed"
-          if command -v shellcheck >/dev/null 2>&1; then
-            sc_ver="$(shellcheck --version | sed -n 's/^version: //p')"
-            echo "shellcheck version: $sc_ver"
-            # Makefile used to run koalaman/shellcheck-alpine:v0.10.0; require the same rules natively.
-            [ "$sc_ver" = "0.10.0" ] || need shellcheck "found $sc_ver, need 0.10.0 (the version the docker image pinned)"
-          else
-            need shellcheck "not on PATH, need 0.10.0"
-          fi
+          # shellcheck runs through the pinned koalaman image (multi-arch, arm64 included); check only that docker works.
+          docker info >/dev/null 2>&1 || need docker "docker info failed"
           exit "$fail"
       - name: lint
         run: make lint-rust
       - name: shellcheck
+        env:
+          SHELLCHECK_DOCKER: "1"
         run: make lint-shell
       - name: test
         run: make test
