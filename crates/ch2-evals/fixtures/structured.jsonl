@@ -1,0 +1,10 @@
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"clean","attempt":0,"reply":"{\"title\":\"Printer offline\",\"priority\":\"high\",\"tags\":[\"hardware\"],\"estimate_hours\":2}"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"refusal-then-ok","attempt":0,"reply":"I'm sorry, I can't help with that request."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"refusal-then-ok","attempt":1,"reply":"{\"title\":\"Add new hire to shared calendar\",\"priority\":\"low\",\"tags\":[\"calendar\"],\"estimate_hours\":1}"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"prose-wrapped","attempt":0,"reply":"Sure! Here is the ticket you asked for: {\"title\":\"Blank page after login\",\"priority\":\"medium\",\"tags\":[\"web\",\"bug\"],\"estimate_hours\":4}"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"prose-wrapped","attempt":1,"reply":"```json\n{\"title\":\"Blank page after login\",\"priority\":\"medium\",\"tags\":[\"web\",\"bug\"],\"estimate_hours\":4}\n```"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"bad-enum","attempt":0,"reply":"{\"title\":\"Backups failed\",\"priority\":\"critical\",\"tags\":[\"database\"],\"estimate_hours\":8}"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"bad-enum","attempt":1,"reply":"{\"title\":\"Backups failed\",\"priority\":\"high\",\"tags\":[\"database\"],\"estimate_hours\":8}"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"always-refuses","attempt":0,"reply":"I cannot assist with password requests."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"always-refuses","attempt":1,"reply":"Sorry, I can't do that."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","case":"always-refuses","attempt":2,"reply":"I must decline."}

@@ -67,3 +67,64 @@ fn lesson1_live_mode_without_a_server_fails_loudly() {
     assert!(!ok);
     assert!(err.contains("demo run failed"));
 }
+
+#[test]
+fn lesson2_prints_its_contract_for_each_runtime() {
+    for rt in ["apr", "ollama", "llamacpp"] {
+        let (ok, out, _) = run(
+            env!("CARGO_BIN_EXE_lesson2_hallucination"),
+            &[("RLL_RUNTIME", rt)],
+        );
+        assert!(ok, "{rt}");
+        assert!(out.contains("contract: cite it or fail OK"));
+        assert!(out.contains("Grounded"));
+    }
+}
+
+#[test]
+fn lesson3_prints_its_contract_for_each_runtime() {
+    for rt in ["apr", "ollama", "llamacpp"] {
+        let (ok, out, _) = run(
+            env!("CARGO_BIN_EXE_lesson3_structured"),
+            &[("RLL_RUNTIME", rt)],
+        );
+        assert!(ok, "{rt}");
+        assert!(out.contains("contract: trust the reply or get no reply OK"));
+        assert!(out.contains("GAVE UP"));
+    }
+}
+
+#[test]
+fn lesson5_prints_its_contract_and_a_ranking() {
+    let (ok, out, _) = run(env!("CARGO_BIN_EXE_lesson5_elo"), &[]);
+    assert!(ok);
+    assert!(out.contains("contract: rank by head to head OK"));
+    assert!(out.contains("1. model-a"));
+}
+
+#[test]
+fn a_bad_runtime_name_stops_lessons_2_and_3() {
+    for exe in [
+        env!("CARGO_BIN_EXE_lesson2_hallucination"),
+        env!("CARGO_BIN_EXE_lesson3_structured"),
+    ] {
+        let (ok, _, err) = run(exe, &[("RLL_RUNTIME", "vllm")]);
+        assert!(!ok);
+        assert!(err.contains("bad RLL_* environment"));
+    }
+}
+
+#[test]
+fn lessons_2_and_3_live_mode_without_a_server_fail_loudly() {
+    for exe in [
+        env!("CARGO_BIN_EXE_lesson2_hallucination"),
+        env!("CARGO_BIN_EXE_lesson3_structured"),
+    ] {
+        let (ok, _, err) = run(
+            exe,
+            &[("RLL_LIVE", "1"), ("RLL_BASE_URL", "http://127.0.0.1:1")],
+        );
+        assert!(!ok);
+        assert!(err.contains("demo run failed"));
+    }
+}
