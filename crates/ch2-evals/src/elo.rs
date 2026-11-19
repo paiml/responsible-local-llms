@@ -137,6 +137,11 @@ fn replay_for(model: &str, all: &[serde_json::Value], cases: &[Case]) -> Result<
 
 /// Offline only: the fixture's answers play every pair. The same `matches_from` ranks live
 /// models when it is given real responders.
+/// The rating text lesson 2.5 prints (`1097.2`). The README hero uses it too.
+pub fn rating_label(r: f64) -> String {
+    format!("{r:.1}")
+}
+
 pub fn run(out: &mut impl Write) -> Result<Summary, RunError> {
     let cases = parse_jsonl(SET).expect("evals/elo.jsonl is a valid eval set");
     let all = rows(FIXTURE).expect("the elo fixture is valid");
@@ -158,7 +163,7 @@ pub fn run(out: &mut impl Write) -> Result<Summary, RunError> {
     let ratings = rate(&names, &matches).expect("the fixture gives a valid ranking");
     let _ = writeln!(out, "{} matches, K = {K}, start = {START}", matches.len());
     for (i, (m, r)) in ratings.iter().enumerate() {
-        let _ = writeln!(out, "  {}. {m:<8} {r:7.1}", i + 1);
+        let _ = writeln!(out, "  {}. {m:<8} {:>7}", i + 1, rating_label(*r));
     }
     let rating = |name: &str| ratings.iter().find(|(m, _)| m == name).map(|(_, r)| *r);
     // The incumbent is the strongest model; the candidate is the middle one.

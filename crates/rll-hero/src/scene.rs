@@ -55,9 +55,9 @@ pub fn sizes_note() -> String {
     )
 }
 
-/// Panel 1 bar label, in the units lesson 1.3 prints scaled to GB.
+/// Panel 1 bar label: lesson 1.3's own formatter, so the bar reads what the demo prints.
 pub fn size_label(bytes: f64) -> String {
-    format!("{:.2} GB", bytes / 1e9)
+    quantize::gib_label(bytes)
 }
 
 /// Panel 2 break-even label, the figure lesson 1.4 prints.
@@ -136,7 +136,7 @@ fn ratings(c: &mut Canvas, x: usize, y: usize, d: &Data) {
         let w = ((r - 800.0).max(0.0) / (top - 800.0) * 330.0) as usize;
         c.text(x + 16, ry + 8, name, 2, MUTED);
         c.rect(x + 150, ry, w, 32, [GREEN, BLUE, AMBER][i % 3]);
-        c.text(x + 160 + w, ry + 8, &format!("{r:.0}"), 2, TEXT);
+        c.text(x + 160 + w, ry + 8, &elo::rating_label(*r), 2, TEXT);
     }
 }
 
@@ -205,11 +205,12 @@ mod tests {
         assert!((quantize::PARAMS - 0.6e9).abs() < 1.0);
         assert_eq!(sizes_note(), "0.6B MODEL, GGUF QUANTIZATION LEVELS");
         for (name, bytes) in &d.sizes {
-            // The demo prints GiB; the bar label is the same bytes in GB.
+            // Every bar label appears verbatim in what the demo printed.
             assert!(text.contains(name));
-            assert_eq!(size_label(*bytes), format!("{:.2} GB", bytes / 1e9));
+            assert!(text.contains(&size_label(*bytes)), "{text}");
         }
-        assert_eq!(size_label(d.sizes[0].1), "0.36 GB");
+        let labels: Vec<_> = d.sizes.iter().map(|s| size_label(s.1)).collect();
+        assert_eq!(labels, ["0.34 GiB", "0.59 GiB", "1.12 GiB"]);
     }
 
     #[test]
@@ -243,9 +244,17 @@ mod tests {
     }
 
     #[test]
-    fn elo_panel_is_what_lesson_2_5_returns() {
-        let demo = elo::run(&mut Vec::new()).unwrap();
-        assert_eq!(gather().ratings, demo.ratings);
+    fn elo_panel_is_what_lesson_2_5_returns_and_prints() {
+        let mut out = Vec::new();
+        let demo = elo::run(&mut out).unwrap();
+        let shown = String::from_utf8(out).unwrap();
+        let d = gather();
+        assert_eq!(d.ratings, demo.ratings);
+        for (_, r) in &d.ratings {
+            assert!(shown.contains(&elo::rating_label(*r)), "{shown}");
+        }
+        let labels: Vec<_> = d.ratings.iter().map(|r| elo::rating_label(r.1)).collect();
+        assert_eq!(labels, ["1097.2", "978.9", "923.9"]);
     }
 
     #[test]

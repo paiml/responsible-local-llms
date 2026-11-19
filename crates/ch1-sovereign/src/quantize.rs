@@ -16,6 +16,11 @@ pub fn size_bytes(params: f64, bits_per_weight: f64) -> f64 {
     params * bits_per_weight / 8.0
 }
 
+/// The size text lesson 1.3 prints for a byte count (`0.34 GiB`). The README hero uses it too.
+pub fn gib_label(bytes: f64) -> String {
+    format!("{:.2} GiB", bytes / (1u64 << 30) as f64)
+}
+
 pub struct Summary {
     pub sizes: Vec<(&'static str, f64)>,
     pub tokens_per_second: f64,
@@ -33,7 +38,7 @@ pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, Er
     let mut sizes = Vec::new();
     for (name, bpw) in LEVELS {
         let bytes = size_bytes(PARAMS, bpw);
-        let _ = writeln!(out, "{name:<7} {:>8.2} GiB", bytes / (1u64 << 30) as f64);
+        let _ = writeln!(out, "{name:<7} {:>11}", gib_label(bytes));
         sizes.push((name, bytes));
     }
     let client = client_for(cfg.runtime, Some(&cfg.base_url), live);
