@@ -2,7 +2,7 @@
 //! to main must also be a required check on pull requests.
 //!
 //! The decision is a fail-closed ALLOW-LIST, never a list of bad shapes. Each workflow under
-//! `.github/workflows` is PARSED as YAML (aliases and merge keys resolved). Anything the check
+//! `.github/workflows` is PARSED as YAML (aliases resolved; a merge key is RED). Anything the check
 //! does not positively understand is a violation:
 //!
 //! 1. Triggers. Every event of every workflow must be classed in `.github/one-gate-allow.txt`
