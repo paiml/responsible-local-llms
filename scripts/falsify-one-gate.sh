@@ -80,6 +80,35 @@ printf '# nothing\n' >"$tmp/req.txt"
 expect_red "empty required list" "lists no checks"
 
 fresh
+cat >"$tmp/w/extra.yml" <<'Y'
+name: extra
+'on':
+  push:
+    branches: [main]
+jobs:
+  sneaky:
+    name: sneaky
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+Y
+expect_red "single-quoted 'on' key is read, not skipped" "no pull_request trigger"
+
+fresh
+cat >"$tmp/w/extra.yml" <<'Y'
+name: extra
+true:
+  push:
+jobs:
+  odd:
+    name: odd
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+Y
+expect_red "workflow whose triggers parse empty" "triggers parse to empty"
+
+fresh
 sed -i '/^  pull_request:/,/^    branches: \[main\]/d' "$tmp/w/ci.yml"
 expect_red "ci.yml loses its pull_request trigger" "no pull_request trigger"
 

@@ -30,7 +30,7 @@ scan() {
     function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); gsub(/^["\x27]|["\x27]$/, "", s); return s }
     function flush() { if (id != "") { print "J " (nm != "" ? nm : id); id = ""; nm = "" } }
     /^[ \t]*#/ { next }
-    /^on:/ || /^"on":/ {
+    /^on:/ || /^"on":/ || /^\x27on\x27:/ {
       sect = "on"; rest = $0; sub(/^[^:]*:/, "", rest); rest = trim(rest)
       if (rest != "") { gsub(/[\[\],]/, " ", rest); n = split(rest, a, " "); for (i = 1; i <= n; i++) print "T " a[i] }
       next }
@@ -51,6 +51,7 @@ for f in "${files[@]}"; do
   triggers=$(awk '$1=="T"{print $2}' <<<"$out")
   jobs=$(awk '$1=="J"{ $1=""; sub(/^ /,""); print }' <<<"$out")
   has() { grep -qx "$1" <<<"$triggers"; }
+  if [ -z "$triggers" ]; then red "$f: triggers parse to empty (no on: block recognised); a workflow whose triggers cannot be read fails closed"; fi
   main_side=0; pr_side=0
   { has push || has workflow_run || has merge_group; } && main_side=1
   { has pull_request || has pull_request_target; } && pr_side=1
