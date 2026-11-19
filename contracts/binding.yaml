@@ -65,3 +65,10 @@ bindings:
   signature: 'fn hosted_cost(&self, mtok_per_month: f64) -> f64'
   status: implemented
   notes: hosted(m) = h·m.
+- contract: whisper-merge-v1.yaml
+  equation: merged_one_line_per_file
+  module_path: ch1_sovereign::whisper
+  function: merged_contract_holds
+  signature: 'fn merged_contract_holds(merged: &str, files: usize) -> bool'
+  status: implemented
+  notes: Rust form of the lesson 1.5 contract; scripts/whisper-pipeline.sh output is checked against it in tests/whisper_script.rs and falsified by whisper::tests and scripts/test-whisper-pipeline.sh.

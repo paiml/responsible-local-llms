@@ -20,6 +20,13 @@ MODEL="${RLL_MODEL:-qwen3-0.6b}"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+for wav in "$@"; do
+  if [ ! -f "$wav" ]; then
+    echo "missing input: $wav" >&2
+    exit 2
+  fi
+done
+
 : > "$tmp/merged.txt"
 for wav in "$@"; do
   "$WHISPER_BIN" -m "${WHISPER_MODEL:?set WHISPER_MODEL to a ggml model}" -f "$wav" -nt -np \
