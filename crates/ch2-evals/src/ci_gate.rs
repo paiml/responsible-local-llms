@@ -106,24 +106,22 @@ fn verdict(r: &Report, min_rate: f64) -> &'static str {
 
 /// Offline replays recordings on all three runtimes; `live` asks the configured runtime.
 pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, RunError> {
-    let mut rows = Vec::new();
-    if live {
+    let responders: Vec<(Runtime, Box<dyn Responder>)> = if live {
         let client = client_for(cfg.runtime, Some(&cfg.base_url), true);
-        let report = measure(&ClientResponder {
-            client,
-            model: cfg.model.clone(),
-        })?;
-        rows.push(Row {
-            runtime: cfg.runtime,
-            report,
-        });
+        let model = cfg.model.clone();
+        vec![(cfg.runtime, Box::new(ClientResponder { client, model }))]
     } else {
-        for rt in Runtime::ALL {
-            rows.push(Row {
-                runtime: rt,
-                report: measure(&recordings(rt))?,
-            });
-        }
+        Runtime::ALL
+            .into_iter()
+            .map(|rt| (rt, Box::new(recordings(rt)) as Box<dyn Responder>))
+            .collect()
+    };
+    let mut rows = Vec::new();
+    for (runtime, responder) in &responders {
+        rows.push(Row {
+            runtime: *runtime,
+            report: measure(responder.as_ref())?,
+        });
     }
     let regressed = measure(&regressed_recordings())?;
     let baseline = rows
