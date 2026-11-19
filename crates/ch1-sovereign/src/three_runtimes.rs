@@ -22,10 +22,20 @@ impl Summary {
     }
 }
 
+/// Asks all three runtimes; each listens at its `RLL_BASE_URL_*` or its default port.
 pub fn run(live: bool, out: &mut impl Write) -> Result<Summary, Error> {
+    run_at(live, |k| std::env::var(k).ok(), out)
+}
+
+/// `run` with the environment lookup passed in, so tests need no process environment.
+pub fn run_at<F: Fn(&str) -> Option<String>>(
+    live: bool,
+    lookup: F,
+    out: &mut impl Write,
+) -> Result<Summary, Error> {
     let mut answers = Vec::new();
     for rt in Runtime::ALL {
-        let client = client_for(rt, None, live);
+        let client = client_for(rt, Some(&rt.base_url_from(&lookup)), live);
         let c = client.chat(&ChatRequest::new("qwen3-0.6b", PROMPT))?;
         let _ = writeln!(
             out,
@@ -52,6 +62,14 @@ mod tests {
         for rt in Runtime::ALL {
             assert!(text.contains(rt.name()));
         }
+    }
+
+    #[test]
+    fn run_at_reads_a_url_per_runtime() {
+        // A live run against per-runtime URLs nobody listens on fails with an error.
+        let mut buf = Vec::new();
+        let r = run_at(true, |_| Some("http://127.0.0.1:1".into()), &mut buf);
+        assert!(r.is_err());
     }
 
     #[test]

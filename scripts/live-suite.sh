@@ -85,8 +85,10 @@ base_url() { # runtime -> sets BASE
   esac
 }
 
+declare -A urls=()
 for rt in "${runtimes[@]}"; do
   base_url "$rt"
+  urls[$rt]=$BASE
   echo "live-suite: $rt up at $BASE"
   RLL_LIVE=1 RLL_QUANT=q4_k_m RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
     cargo test -q -p ch1-sovereign --test configured_runtime -- --nocapture --test-threads 1
@@ -96,4 +98,14 @@ for rt in "${runtimes[@]}"; do
     cargo test -q -p ch4-agents --test configured_runtime -- --nocapture --test-threads 1
   echo "live-suite: $rt PASS"
 done
+# Lesson 1.2 asks all three runtimes in one run, so it needs all three up at once. The
+# servers started above stay up until this script exits.
+if [ -n "${urls[apr]:-}" ] && [ -n "${urls[ollama]:-}" ] && [ -n "${urls[llamacpp]:-}" ]; then
+  RLL_LIVE=1 RLL_MODEL=$MODEL_NAME RLL_BASE_URL_APR=${urls[apr]} RLL_BASE_URL_OLLAMA=${urls[ollama]} \
+    RLL_BASE_URL_LLAMACPP=${urls[llamacpp]} \
+    cargo test -q -p ch1-sovereign --test configured_runtime lesson2_three_runtimes -- --nocapture --test-threads 1
+  echo "live-suite: lesson 1.2 PASS (all three runtimes at once)"
+else
+  echo "live-suite: lesson 1.2 skipped (needs apr, ollama and llamacpp in one run)"
+fi
 echo "live-suite: PASS (${runtimes[*]})"

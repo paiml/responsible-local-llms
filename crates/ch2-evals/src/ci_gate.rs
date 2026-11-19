@@ -91,11 +91,6 @@ pub fn dropped(before: &Report, after: &Report) -> Vec<String> {
         .collect()
 }
 
-/// Asks a thinking model (Qwen3) to answer directly. Without it the 64-token budget is spent
-/// inside the model's reasoning and every answer comes back empty, so the gate would judge
-/// the token budget instead of the model.
-pub const DIRECT: &str = " /no_think";
-
 /// Wraps a live responder so every prompt asks for a direct answer.
 pub struct Direct<R: Responder>(pub R);
 
@@ -107,7 +102,7 @@ impl<R: Responder> Responder for Direct<R> {
         temperature: f32,
     ) -> Result<String, rll_client::Error> {
         self.0
-            .answer(&format!("{prompt}{DIRECT}"), seed, temperature)
+            .answer(&rll_client::direct(prompt), seed, temperature)
     }
 }
 
