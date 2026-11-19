@@ -9,6 +9,7 @@ One Rust workspace, one test suite, and three local runtimes serving the same mo
 | Path | What it is |
 |------|------------|
 | `crates/rll-client` | One OpenAI-compatible chat client. `RLL_RUNTIME=apr\|ollama\|llamacpp` picks the runtime, `RLL_BASE_URL` overrides where it listens. |
+| `crates/ch4-agents` | Chapter 4 demos (videos 4.1 to 4.5): typed tool agent, local MCP server over loopback, agency limits, human approval with an audit log, tool-abuse evals. Offline, the model is a RECORDED, illustrative answer set; live legs check invariants only. |
 | `crates/ch1-sovereign` | Chapter 1 demos (lessons 2 to 4), each ending in an `assert!` and a `contract: ... OK` line. |
 | `scripts/` | `serve-apr.sh`, `serve-ollama.sh`, `serve-llamacpp.sh`, and the whisper.cpp pipeline for lesson 5. |
 | `evals/` | Test sets as `*.jsonl` (filled in from chapter 2). |
@@ -65,6 +66,11 @@ The same contracts are written down as YAML under `contracts/` and checked by
 | `three-runtimes-agree-v1` | lesson 2: apr, Ollama and llama.cpp answer one request and each contain "Paris" |
 | `quantize-size-speed-v1` | lesson 3: size grows with bits per weight; measured tokens/s is finite and positive |
 | `local-economics-breakeven-v1` | lesson 4: costs are equal at break-even; with none, hosted is cheaper at every volume |
+| `typed-tool-calls-v1` | lesson 4.1: only output that parses as a typed tool call runs |
+| `mcp-loopback-v1` | lesson 4.2: tools listed and called over loopback MCP; remote addresses refused |
+| `agency-limits-v1` | lesson 4.3: allow-list, jail and dry-run; a refusal changes nothing |
+| `approval-audit-v1` | lesson 4.4: a destructive call needs a yes; the audit log is hash-chained |
+| `tool-output-is-data-v1` | lesson 4.5: injected tool output never widens agency; the benign case still passes |
 | `demo-bin-v1` | every bin: contract docstring, `assert!` before the `contract: ... OK` line |
 
 `make pv` runs `pv lint` (bindings in `contracts/binding.yaml`), the ontology's sigma and shapes
