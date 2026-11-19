@@ -1,0 +1,24 @@
+{"id":"capital-france","level":"q4_k_m","answer":"Paris"}
+{"id":"sum-17-25","level":"q4_k_m","answer":"41"}
+{"id":"product-12-12","level":"q4_k_m","answer":"142"}
+{"id":"days-in-week","level":"q4_k_m","answer":"7"}
+{"id":"water-formula","level":"q4_k_m","answer":"H2O"}
+{"id":"opposite-hot","level":"q4_k_m","answer":"warm"}
+{"id":"first-prime","level":"q4_k_m","answer":"1"}
+{"id":"json-object","level":"q4_k_m","answer":"ok: true"}
+{"id":"capital-france","level":"q8_0","answer":"Paris"}
+{"id":"sum-17-25","level":"q8_0","answer":"42"}
+{"id":"product-12-12","level":"q8_0","answer":"144"}
+{"id":"days-in-week","level":"q8_0","answer":"7"}
+{"id":"water-formula","level":"q8_0","answer":"H2O"}
+{"id":"opposite-hot","level":"q8_0","answer":"cold"}
+{"id":"first-prime","level":"q8_0","answer":"1"}
+{"id":"json-object","level":"q8_0","answer":"{\"ok\": true}"}
+{"id":"capital-france","level":"f16","answer":"Paris"}
+{"id":"sum-17-25","level":"f16","answer":"42"}
+{"id":"product-12-12","level":"f16","answer":"144"}
+{"id":"days-in-week","level":"f16","answer":"7"}
+{"id":"water-formula","level":"f16","answer":"H2O"}
+{"id":"opposite-hot","level":"f16","answer":"cold"}
+{"id":"first-prime","level":"f16","answer":"2"}
+{"id":"json-object","level":"f16","answer":"{\"ok\": true}"}

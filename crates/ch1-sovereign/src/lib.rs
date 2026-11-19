@@ -2,6 +2,7 @@
 //! demo bins in `src/bin/` call it, assert the contract and print the verdict.
 
 pub mod economics;
+pub mod quality;
 pub mod quantize;
 pub mod three_runtimes;
 
