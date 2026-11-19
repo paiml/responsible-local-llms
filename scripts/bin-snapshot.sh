@@ -12,15 +12,18 @@ sum() { sha256sum | cut -d' ' -f1; }
 mkdir -p "$(dirname "$out")"
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
-for f in crates/*/src/bin/*.rs; do
+for f in crates/*/src/bin/*.rs crates/*/src/main.rs; do
   pkg=${f#crates/}; pkg=${pkg%%/*}
   tgt=$(basename "$f" .rs)
+  args=()
+  # A crate-root main.rs (rll-hero) is a tool, not a demo: its bin is named for its package, and --help is its probe.
+  if [ "$tgt" = main ]; then tgt=$pkg; args=(--help); fi
   exe=${CARGO_TARGET_DIR:-target}/debug/$tgt
   [ -x "$exe" ] || { echo "bin-snapshot: $exe not built; run cargo build --workspace --bins first" >&2; exit 1; }
   ver=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
   version="$tgt $ver (${sha:0:9})"
   set +e
-  run=$(env -u RLL_LIVE -u RLL_RUNTIME -u RLL_BASE_URL -u RLL_MODEL "$exe")
+  run=$(env -u RLL_LIVE -u RLL_RUNTIME -u RLL_BASE_URL -u RLL_MODEL "$exe" "${args[@]}")
   code=$?
   set -e
   printf '{"schema":"binary-snapshot/v1","package":"%s","target":"%s","name":"%s","src_path":"%s","git_sha":"%s","version":"%s","version_sha256":"%s","binary_sha256":"%s","help_sha256":"%s","help_exit":%s,"commands":[],"routes":[],"tools":[]}\n' \

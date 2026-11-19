@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SUFFIXES:
 .DELETE_ON_ERROR:
 
-.PHONY: test coverage lint lint-rust lint-shell pv live gate
+.PHONY: test coverage lint lint-rust lint-shell pv hero hero-write live gate
 
 # Offline: recorded fixtures only.
 test:
@@ -46,4 +46,13 @@ pv:
 live:
 	scripts/live-suite.sh $(RUNTIMES)
 
-gate: lint test coverage pv
+gate: lint test coverage pv hero
+
+# The README hero (ADS-DEMO-001 R-9): rll-hero redraws docs/hero.png from the repo's own offline demos;
+# `hero` goes RED when the image is missing, stale or altered, its evidence/hero.jsonl row is stale, or
+# the README does not open with it. After a change to any demo that feeds it: `make hero-write`.
+hero:
+	cargo run --quiet -p rll-hero -- check
+
+hero-write:
+	cargo run --quiet -p rll-hero -- write

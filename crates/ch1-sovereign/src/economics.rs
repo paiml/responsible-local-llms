@@ -73,20 +73,24 @@ impl Summary {
     }
 }
 
-pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, Error> {
-    let client = client_for(cfg.runtime, Some(&cfg.base_url), live);
-    let c = client.chat(&ChatRequest::new(&cfg.model, "Say hello."))?;
-    let inputs = Inputs {
+/// The course's cost inputs, given a measured speed. One source: the demo and the README hero both call it.
+pub fn course_inputs(tokens_per_second: f64) -> Inputs {
+    Inputs {
         hardware_usd: 2400.0,
         lifetime_months: 36.0,
         watts: 250.0,
         kwh_usd: 0.15,
         hosted_usd_per_mtok: 3.0,
-        tokens_per_second: c.tokens_per_second(),
+        tokens_per_second,
         rented_gpu_usd_per_hour: 2.0,
         busy_hours_per_day: 4.0,
-    };
-    Ok(summarize(inputs, out))
+    }
+}
+
+pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, Error> {
+    let client = client_for(cfg.runtime, Some(&cfg.base_url), live);
+    let c = client.chat(&ChatRequest::new(&cfg.model, "Say hello."))?;
+    Ok(summarize(course_inputs(c.tokens_per_second()), out))
 }
 
 /// Print the comparison and package it.
