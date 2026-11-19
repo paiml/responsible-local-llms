@@ -46,9 +46,8 @@ live:
 
 gate: one-gate lint test coverage pv
 
-# ONE GATE (operator ruling 2026-11-19): every job that runs on push to main also runs on pull
-# requests and is in .github/required-checks.txt. pmat comply has no repo-local check hook, so
-# this is the check; the falsifier proves it goes red.
+# ONE GATE (operator ruling 2026-11-19): every job that runs on push to main is a required pull
+# request check. crates/one-gate parses each workflow as YAML and applies the rule to the tree; its
+# tests (cargo test, coverage) hold the evasions. pmat comply has no hook for this today.
 one-gate:
-	scripts/lint-one-gate.sh
-	scripts/falsify-one-gate.sh
+	cargo run --quiet -p one-gate -- .
