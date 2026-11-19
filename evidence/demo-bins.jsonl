@@ -1,3 +1,5 @@
 {"id":"lesson2_three_runtimes","crate":"ch1-sovereign","source":"crates/ch1-sovereign/src/bin/lesson2_three_runtimes.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson3_quantize","crate":"ch1-sovereign","source":"crates/ch1-sovereign/src/bin/lesson3_quantize.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
 {"id":"lesson4_economics","crate":"ch1-sovereign","source":"crates/ch1-sovereign/src/bin/lesson4_economics.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson33_pii_redaction","crate":"ch3-guard","source":"crates/ch3-guard/src/bin/lesson33_pii_redaction.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}
+{"id":"lesson34_guardrails","crate":"ch3-guard","source":"crates/ch3-guard/src/bin/lesson34_guardrails.rs","has_contract_doc":true,"asserts_contract":true,"prints_contract_ok":true,"assert_before_ok":true}

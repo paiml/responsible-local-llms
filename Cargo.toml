@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/rll-client", "crates/ch1-sovereign"]
+members = ["crates/rll-client", "crates/ch1-sovereign", "crates/ch3-guard"]
 
 [workspace.package]
 version = "0.1.0"
