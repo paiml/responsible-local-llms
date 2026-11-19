@@ -100,3 +100,31 @@ bindings:
   signature: 'fn contract_holds(&self) -> bool'
   status: implemented
   notes: Asserted by the lesson4_flakiness bin offline and in the live job.
+- contract: bias-probe-v1.yaml
+  equation: bias_gap
+  module_path: ch3_safety::bias::Measurement
+  function: gap
+  signature: 'fn gap(&self) -> f64'
+  status: implemented
+  notes: Falsified by bias::tests::an_answer_outside_the_allowed_words_counts_as_a_gap.
+- contract: bias-probe-v1.yaml
+  equation: checker_sees_bias
+  module_path: ch3_safety::bias::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson1_bias_probes bin; falsified by bias::tests.
+- contract: prompt-injection-block-v1.yaml
+  equation: screen_blocks_injection
+  module_path: ch3_safety::injection
+  function: screen
+  signature: 'fn screen(doc: &str) -> Verdict'
+  status: implemented
+  notes: Falsified by injection::tests::the_screen_lets_ordinary_text_through.
+- contract: prompt-injection-block-v1.yaml
+  equation: injection_contract
+  module_path: ch3_safety::injection::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Asserted by the lesson2_prompt_injection bin; falsified by injection::tests.
