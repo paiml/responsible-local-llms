@@ -32,6 +32,20 @@ impl Runtime {
         }
     }
 
+    /// The variable that points the demos that use all three runtimes at once at this one.
+    pub fn url_var(self) -> &'static str {
+        match self {
+            Runtime::Apr => "RLL_BASE_URL_APR",
+            Runtime::Ollama => "RLL_BASE_URL_OLLAMA",
+            Runtime::LlamaCpp => "RLL_BASE_URL_LLAMACPP",
+        }
+    }
+
+    /// Where this runtime listens: its `url_var` if set, else the default.
+    pub fn base_url_from<F: Fn(&str) -> Option<String>>(self, lookup: F) -> String {
+        lookup(self.url_var()).unwrap_or_else(|| self.default_base_url().to_string())
+    }
+
     /// Parse an `RLL_RUNTIME` value.
     pub fn parse(s: &str) -> Result<Runtime, Error> {
         Runtime::ALL
@@ -96,6 +110,19 @@ mod tests {
         let urls: Vec<_> = Runtime::ALL.iter().map(|r| r.default_base_url()).collect();
         assert_eq!(urls.len(), 3);
         assert!(urls[0] != urls[1] && urls[1] != urls[2] && urls[0] != urls[2]);
+    }
+
+    #[test]
+    fn per_runtime_url_var_overrides_the_default() {
+        for r in Runtime::ALL {
+            assert_eq!(r.base_url_from(|_| None), r.default_base_url());
+            assert_eq!(
+                r.base_url_from(|k| (k == r.url_var()).then(|| "http://h:2".into())),
+                "http://h:2"
+            );
+        }
+        let vars: Vec<_> = Runtime::ALL.iter().map(|r| r.url_var()).collect();
+        assert!(vars[0] != vars[1] && vars[1] != vars[2] && vars[0] != vars[2]);
     }
 
     #[test]
