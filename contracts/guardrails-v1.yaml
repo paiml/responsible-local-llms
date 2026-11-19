@@ -1,0 +1,87 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 3.4: every guardrail rule (refuse, filter, log) trips on its case and not on its near miss; a filter passes on exactly the redacted text; no log line holds the text."
+  references:
+    - "crates/ch3-guard/src/guard.rs"
+    - "crates/ch3-guard/src/guard_demo.rs"
+    - "crates/ch3-guard/src/bin/lesson34_guardrails.rs"
+    - "evals/guardrails.jsonl"
+  tags:
+    - safety
+    - guardrails
+
+equations:
+  rule_trips_exactly_on_its_case:
+    formula: "∀ r ∈ RULES: ∃ trip case c: check(c).rule = r ∧ ∃ near miss n: check(n).rule ≠ r"
+    domain: "the six rules input-length, input-injection, input-pii, output-secret, output-deny-term, output-pii"
+    codomain: "each case gets the action written for it (allow, filter or refuse)"
+    invariants:
+      - "a refuse passes on no text"
+      - "a filter passes on exactly redact(text)"
+      - "an input that is too long or an injection is refused before PII is looked at"
+      - "an output secret is refused before PII is filtered"
+  log_never_holds_the_text:
+    formula: "∀ case, ∀ s ∈ secrets(case): s ∉ log(check(case)) ∧ s ∉ passed_on(check(case))"
+    domain: "any text at either stage"
+    codomain: "one line per decision: guard stage=S rule=R action=A chars=N kinds=K"
+    invariants:
+      - "the line holds counts and kinds only"
+
+proof_obligations:
+  - type: invariant
+    property: "Every rule has a trip and a near miss on its own stage"
+    formal: "∀ r ∈ RULES: trips(r) ≥ 1 ∧ near_misses(r) ≥ 1"
+    applies_to: rule_trips_exactly_on_its_case
+  - type: invariant
+    property: "No listed secret reaches a log line or the passed-on text"
+    formal: "leaks = 0"
+    applies_to: log_never_holds_the_text
+
+falsification_tests:
+  - id: FALSIFY-L34-001
+    rule: "A rule that does not fire is caught"
+    prediction: "A case that says a rule must trip, on text that does not trip it, is a mismatch"
+    test: "guard_demo::tests::falsifier_a_rule_that_does_not_fire_is_a_mismatch"
+    if_fails: "a dead rule passes unnoticed"
+  - id: FALSIFY-L34-002
+    rule: "A near miss that trips is caught"
+    prediction: "A near-miss case that fires its rule is a mismatch"
+    test: "guard_demo::tests::falsifier_a_near_miss_that_trips_is_a_mismatch"
+    if_fails: "an over-broad rule passes unnoticed"
+  - id: FALSIFY-L34-003
+    rule: "A weakened policy is caught"
+    prediction: "With the injection phrases removed, the bundled injection cases fail"
+    test: "guard_demo::tests::falsifier_a_weakened_policy_is_caught"
+    if_fails: "removing a guardrail leaves CI green"
+  - id: FALSIFY-L34-004
+    rule: "A leaked secret is caught"
+    prediction: "A listed secret in the passed-on text or a log line counts as a leak"
+    test: "guard_demo::tests::falsifier_a_logged_secret_is_a_leak"
+    if_fails: "leaks are not measured"
+  - id: FALSIFY-L34-005
+    rule: "A wrong passed-on text is caught"
+    prediction: "A filter case whose wanted text differs from the real redaction is a mismatch"
+    test: "guard_demo::tests::falsifier_a_wrong_passed_on_text_is_a_mismatch"
+    if_fails: "filters are not checked for what they pass on"
+  - id: FALSIFY-L34-006
+    rule: "A rule with no near miss fails"
+    prediction: "A set with only trip cases fails the contract"
+    test: "guard_demo::tests::a_rule_with_no_near_miss_fails"
+    if_fails: "a rule can ship without its near miss"
+  - id: FALSIFY-L34-007
+    rule: "Bin enforces the contract"
+    prediction: "lesson34_guardrails prints 'contract: every guardrail trips on its case and not on its near miss OK'"
+    test: "tests/bins.rs::lesson34_prints_its_contract"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-L34-001
+  name: "Guardrails"
+  description: "Lesson 3.4 demo contract"
+  checks:
+    - "rule_trips_exactly_on_its_case"
+    - "log_never_holds_the_text"
+  pass_criteria: "All falsification tests pass offline"

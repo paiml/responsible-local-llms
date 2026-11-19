@@ -1,0 +1,40 @@
+version: 1.0.0
+target_crate: ch3-guard
+# Maps each contract equation to the Rust function that implements it.
+# The ch1 bindings live in contracts/binding.yaml (one target crate per registry; Makefile `pv` lints both).
+bindings:
+- contract: pii-redaction-v1.yaml
+  equation: redact_removes_findings
+  module_path: ch3_guard::pii
+  function: redact
+  signature: 'fn redact(text: &str) -> (String, Vec<Finding>)'
+  status: implemented
+  notes: Asserted by the lesson33_pii_redaction bin; falsified by pii_demo::tests.
+- contract: pii-redaction-v1.yaml
+  equation: redact_removes_findings
+  module_path: ch3_guard::pii
+  function: detect
+  signature: 'fn detect(text: &str) -> Vec<Finding>'
+  status: implemented
+  notes: Falsified by pii::tests (each kind and its near misses).
+- contract: pii-redaction-v1.yaml
+  equation: log_line_carries_no_values
+  module_path: ch3_guard::pii
+  function: log_line
+  signature: 'fn log_line(text: &str) -> String'
+  status: implemented
+  notes: Falsified by pii::tests::log_line_has_counts_and_kinds_but_not_the_text.
+- contract: guardrails-v1.yaml
+  equation: rule_trips_exactly_on_its_case
+  module_path: ch3_guard::guard
+  function: check
+  signature: 'fn check(policy: &Policy, stage: Stage, text: &str) -> Verdict'
+  status: implemented
+  notes: Asserted by the lesson34_guardrails bin; falsified by guard_demo::tests.
+- contract: guardrails-v1.yaml
+  equation: log_never_holds_the_text
+  module_path: ch3_guard::guard_demo::Summary
+  function: contract_holds
+  signature: 'fn contract_holds(&self) -> bool'
+  status: implemented
+  notes: Counts leaks; falsified by guard_demo::tests::falsifier_a_logged_secret_is_a_leak.

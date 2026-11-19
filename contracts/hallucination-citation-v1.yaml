@@ -1,0 +1,114 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 2.2: catch hallucination. An answer passes only if it cites the passage that answers the question and quotes it verbatim with the fact in it; a question the passages cannot answer must be refused. The checker gives every kind of bad answer its own verdict."
+  references:
+    - "evals/hallucination.jsonl"
+    - "crates/ch2-evals/src/hallucination.rs"
+    - "crates/ch2-evals/src/bin/lesson2_hallucination.rs"
+    - "crates/ch2-evals/fixtures/hallucination.jsonl"
+  tags:
+    - evals
+    - hallucination
+    - citation
+
+equations:
+  grounded:
+    formula: "judge(case, a) = Grounded ⇔ cited(a) ≠ ∅ ∧ cited(a) ⊆ {case.gold} ∧ quoted(a) ≠ ∅ ∧ ∀ q ∈ quoted(a): q ⊆ passage(case.gold) ∧ ∃ q: case.fact ⊆ q"
+    domain: "case: a validated Case with gold and fact, a: any answer string"
+    codomain: "a Verdict; only Grounded and Refused pass"
+    invariants:
+      - "an answer with no citation or no quote is Uncited"
+      - "a citation of any passage but the gold one is WrongSource"
+      - "a quote that is not verbatim in the gold passage (case and spacing ignored) is FabricatedQuote"
+      - "a verbatim quote without the fact is MissingFact"
+    preconditions:
+      - "case.gold is a passage id and case.fact occurs in that passage"
+    postconditions:
+      - "judge(case, a) = Grounded implies a cites case.gold and quotes it"
+  refusal:
+    formula: "case.gold = ∅ ⇒ (judge(case, a) = Refused ⇔ a = NOT IN SOURCE); case.gold ≠ ∅ ∧ a = NOT IN SOURCE ⇒ WrongRefusal"
+    domain: "case: any validated Case, a: any answer string"
+    codomain: "Refused, Hallucinated or WrongRefusal"
+    invariants:
+      - "answering an unanswerable question is Hallucinated, even with a citation"
+      - "refusing an answerable question is WrongRefusal"
+    preconditions:
+      - "REFUSAL is the fixed string NOT IN SOURCE"
+    postconditions:
+      - "an unanswerable case never judges Grounded"
+  checker_catches_all:
+    formula: "∀ v ∈ FAILURES: ∃ trap t: t.expect = v ∧ judge(t.case, t.answer) = v"
+    domain: "s: the Summary of a run"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "every failure verdict has a trap that the checker catches with exactly that verdict"
+      - "offline, every replayed answer passes; live, the model is measured, not required to pass"
+    preconditions:
+      - "fixtures carry a provenance of recorded or illustrative"
+    postconditions:
+      - "contract_holds(s) implies every trap is caught and every failure kind has a trap"
+
+proof_obligations:
+  - type: invariant
+    property: "A fabricated or off-source quote never passes"
+    formal: "judge(case, a) = Grounded ⇒ ∀ q ∈ quoted(a): q ⊆ passage(case.gold)"
+    applies_to: grounded
+  - type: invariant
+    property: "An unanswerable question is never Grounded"
+    formal: "case.gold = ∅ ⇒ judge(case, a) ∈ {Refused, Hallucinated}"
+    applies_to: refusal
+
+falsification_tests:
+  - id: FALSIFY-H22-001
+    rule: "Each failure has its own verdict"
+    prediction: "Uncited, WrongSource, FabricatedQuote, MissingFact and WrongRefusal answers each get their own non-passing verdict"
+    test: "hallucination::tests::the_checker_gives_each_failure_its_own_verdict"
+    if_fails: "the checker lets a bad answer through or mislabels it"
+  - id: FALSIFY-H22-002
+    rule: "An unanswerable question needs the refusal"
+    prediction: "Any answer but NOT IN SOURCE to an unanswerable case is Hallucinated, even with a citation"
+    test: "hallucination::tests::an_unanswerable_question_needs_the_refusal"
+    if_fails: "the checker rewards an invented answer"
+  - id: FALSIFY-H22-003
+    rule: "A trap that is not caught"
+    prediction: "Changing a trap's verdict to Grounded makes contract_holds false"
+    test: "hallucination::tests::contract_fails_when_a_trap_is_not_caught"
+    if_fails: "contract_holds no longer compares traps with the checker"
+  - id: FALSIFY-H22-004
+    rule: "A failure kind with no trap"
+    prediction: "A summary missing the trap for any failure verdict makes contract_holds false"
+    test: "hallucination::tests::contract_fails_when_a_failure_kind_has_no_trap"
+    if_fails: "the checker could lose a check unnoticed"
+  - id: FALSIFY-H22-005
+    rule: "An offline answer that fails"
+    prediction: "A failing replayed answer makes the offline contract false, and true when require_all_pass is off (live)"
+    test: "hallucination::tests::contract_fails_offline_when_an_answer_does_not_pass_but_not_live"
+    if_fails: "the offline demonstration is not enforced"
+  - id: FALSIFY-H22-006
+    rule: "A set with a hole"
+    prediction: "parse refuses a set with a bad gold, a fact not in the gold passage, or a gold without a fact"
+    test: "hallucination::tests::a_set_with_a_hole_is_refused"
+    if_fails: "a case that tests nothing is accepted"
+  - id: FALSIFY-H22-007
+    rule: "An unlabelled fixture"
+    prediction: "A fixture row without a recorded or illustrative provenance is refused"
+    test: "replay::tests::rows_refuse_an_unlabelled_fixture"
+    if_fails: "an invented answer can pass as a measurement"
+  - id: FALSIFY-H22-008
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson2_hallucination prints 'contract: cite it or fail OK' for every runtime and exits 0"
+    test: "tests/bins.rs::lesson2_prints_its_contract_for_each_runtime; tests/configured_runtime.rs live"
+    if_fails: "the bin no longer asserts the contract"
+
+qa_gate:
+  id: F-H22-001
+  name: "Cite it or fail"
+  description: "Lesson 2.2 demo contract"
+  checks:
+    - "grounded"
+    - "refusal"
+    - "checker_catches_all"
+  pass_criteria: "All falsification tests pass offline; the bin prints its contract line"

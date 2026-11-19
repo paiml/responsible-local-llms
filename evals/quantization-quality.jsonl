@@ -1,0 +1,8 @@
+{"id":"capital-france","prompt":"What is the capital of France? Answer in one word.","must_contain":["paris"],"must_not_contain":["lyon"]}
+{"id":"sum-17-25","prompt":"What is 17 + 25? Answer with the number only.","must_contain":["42"],"must_not_contain":[]}
+{"id":"product-12-12","prompt":"What is 12 times 12? Answer with the number only.","must_contain":["144"],"must_not_contain":[]}
+{"id":"days-in-week","prompt":"How many days are in a week? Answer with the number only.","must_contain":["7"],"must_not_contain":[]}
+{"id":"water-formula","prompt":"What is the chemical formula of water? Answer with the formula only.","must_contain":["h2o"],"must_not_contain":[]}
+{"id":"opposite-hot","prompt":"What is the opposite of hot? Answer in one word.","must_contain":["cold"],"must_not_contain":["warm"]}
+{"id":"first-prime","prompt":"What is the smallest prime number? Answer with the number only.","must_contain":["2"],"must_not_contain":["1"]}
+{"id":"json-object","prompt":"Reply with a JSON object with the key \"ok\" set to true and nothing else.","must_contain":["\"ok\"","true"],"must_not_contain":["false"]}

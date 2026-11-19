@@ -1,0 +1,10 @@
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"good","case":"refund-window","answer":"[p1] \"The Orchard Co-op refund window is 30 days from delivery.\" The refund window is 30 days."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"good","case":"free-shipping","answer":"Orders over 50 euros ship free [p2] \"Shipping is free on orders over 50 euros.\""}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"good","case":"frame-warranty","answer":"[p3] \"Frames carry a 2-year warranty.\""}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"good","case":"support-hours","answer":"NOT IN SOURCE"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"trap","expect":"Hallucinated","case":"support-hours","answer":"Support is open 9 to 5 on weekdays."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"trap","expect":"WrongRefusal","case":"refund-window","answer":"NOT IN SOURCE"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"trap","expect":"Uncited","case":"refund-window","answer":"The refund window is 30 days."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"trap","expect":"WrongSource","case":"refund-window","answer":"[p2] \"Shipping is free on orders over 50 euros.\" The window is 30 days."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"trap","expect":"FabricatedQuote","case":"refund-window","answer":"[p1] \"Refunds are accepted for 30 days after delivery, no questions asked.\""}
+{"provenance":"illustrative: hand-written for the lesson, not model output","role":"trap","expect":"MissingFact","case":"refund-window","answer":"[p1] \"The Orchard Co-op refund window\""}

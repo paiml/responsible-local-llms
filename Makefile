@@ -33,6 +33,7 @@ PV_GATES := sigma shapes
 pv:
 	scripts/demo-bins-jsonl.sh --check
 	pv lint contracts --binding contracts/binding.yaml --crate-dir crates/ch1-sovereign
+	pv lint contracts --binding contracts/ch3-guard/binding.yaml --crate-dir crates/ch3-guard
 	@for g in $(PV_GATES); do \
 	  if pv lint contracts --gate $$g --format json | grep -q '^  "verdict": "Pass"'; then \
 	    echo "pv gate $$g: Pass"; else echo "pv gate $$g: FAIL"; exit 1; fi; \

@@ -1,0 +1,18 @@
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-a","case":"capital-france","answer":"Paris is the capital of France."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-a","case":"sum-17-25","answer":"42"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-a","case":"symbol-gold","answer":"Au"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-a","case":"largest-planet","answer":"Jupiter is the largest planet in the solar system."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-a","case":"water-boil","answer":"100"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-a","case":"opposite-hot","answer":"Cold"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-b","case":"capital-france","answer":"The capital of France is Paris."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-b","case":"sum-17-25","answer":"42"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-b","case":"symbol-gold","answer":"Ag"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-b","case":"largest-planet","answer":"The largest planet in the solar system is Jupiter, a gas giant more massive than all other planets combined."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-b","case":"water-boil","answer":"100"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-b","case":"opposite-hot","answer":"Warm"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-c","case":"capital-france","answer":"Lyon."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-c","case":"sum-17-25","answer":"43"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-c","case":"symbol-gold","answer":"Au"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-c","case":"largest-planet","answer":"Saturn is the largest planet."}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-c","case":"water-boil","answer":"212"}
+{"provenance":"illustrative: hand-written for the lesson, not model output","model":"model-c","case":"opposite-hot","answer":"Warm"}
