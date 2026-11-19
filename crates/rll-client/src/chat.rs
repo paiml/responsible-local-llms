@@ -22,7 +22,22 @@ pub struct ChatRequest {
     pub stream: bool,
 }
 
+/// Asks a thinking model (Qwen3) to answer directly. Without it the 64-token budget is spent
+/// inside the model's reasoning and the answer comes back empty, so a demo would judge the
+/// token budget instead of the model. Every live prompt goes through [`direct`].
+pub const DIRECT: &str = " /no_think";
+
+/// The prompt with the direct-answer switch appended.
+pub fn direct(prompt: &str) -> String {
+    format!("{prompt}{DIRECT}")
+}
+
 impl ChatRequest {
+    /// A request that asks for a direct answer (see [`DIRECT`]).
+    pub fn direct(model: &str, prompt: &str) -> ChatRequest {
+        ChatRequest::new(model, &direct(prompt))
+    }
+
     pub fn new(model: &str, prompt: &str) -> ChatRequest {
         ChatRequest {
             model: model.to_string(),
@@ -145,6 +160,14 @@ mod tests {
         let r = ChatRequest::new("m", "hi");
         assert_eq!((r.temperature, r.seed, r.stream), (0.0, 7, false));
         assert_eq!(r.messages[0].role, "user");
+    }
+
+    #[test]
+    fn direct_appends_the_no_think_switch() {
+        assert_eq!(direct("Q"), "Q /no_think");
+        let r = ChatRequest::direct("m", "Q");
+        assert_eq!(r.messages[0].content, "Q /no_think");
+        assert_eq!(r.max_tokens, 64);
     }
 
     #[test]

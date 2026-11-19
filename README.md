@@ -57,12 +57,12 @@ RLL_LIVE=1 RLL_RUNTIME=ollama cargo run -p ch1-sovereign --bin lesson3_quantize
 Qwen3-0.6B q4_k_m GGUF, starts llama.cpp (`ghcr.io/ggml-org/llama.cpp:server-b12110`) and
 Ollama (`ollama/ollama:0.40.13`) from pinned images, and runs
 `crates/ch1-sovereign/tests/configured_runtime.rs` against each one with `RLL_LIVE=1`.
-`scripts/live-suite.sh apr` adds the apr leg through `scripts/serve-apr.sh` when `apr` is on
-your PATH. The live suite is a nightly LAB workflow (`.github/workflows/live.yml`), never part of a pull
-request: the `live` job runs llama.cpp and Ollama, and the `live-apr` job runs the apr leg on a
-runner that already has `apr` on its PATH. That job only checks for `apr`; it never installs
-it, so a runner without it fails the job red and the failure is the signal. apr is also checked
-locally with `make live RUNTIMES=apr`. A runtime that cannot start fails the run.
+The suite always runs all three runtimes at once (apr through `scripts/serve-apr.sh`, so `apr` must be on
+your PATH), because lesson 1.2 asks all three in one run. A run with fewer than three, or one runtime that
+cannot start, fails; a skipped lesson contract is never a PASS. The live suite is a nightly LAB workflow
+(`.github/workflows/live.yml`), never part of a pull request: its one `live` job runs on a runner that has
+docker and `apr` on its PATH. That job only checks for them; it never installs anything, so a runner
+without `apr` fails the job red and the failure is the signal.
 
 ## Provable contracts
 

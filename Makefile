@@ -8,6 +8,7 @@ SHELL := /bin/bash
 test:
 	cargo test --workspace
 	scripts/test-whisper-pipeline.sh
+	scripts/test-live-suite-partial.sh
 
 # 100% of demo and client lines, bins included (they run as subprocesses in tests/bins.rs).
 coverage:
@@ -40,7 +41,8 @@ pv:
 	done
 	pv extract contracts --check
 
-# Live: real local runtimes (llama.cpp and Ollama from pinned images, apr if on PATH).
+# Live: all three real runtimes at once (llama.cpp and Ollama from pinned images, apr on PATH);
+# a run without all three fails, because lesson 1.2 needs them together.
 live:
 	scripts/live-suite.sh $(RUNTIMES)
 

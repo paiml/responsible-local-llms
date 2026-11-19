@@ -1,0 +1,95 @@
+metadata:
+  version: "1.0.0"
+  created: "2026-11-19"
+  author: "PAIML Engineering"
+  kind: pattern
+  description: "Lesson 2.6: evals in CI. One suite runs on every runtime and a pass-rate gate turns it into a verdict. The gate must clear a good build on all three runtimes and go red for a model that got worse; a gate that cannot fail is decoration."
+  references:
+    - "crates/rll-evals/src/runner.rs"
+    - "crates/ch2-evals/src/ci_gate.rs"
+    - "crates/ch2-evals/src/bin/lesson6_ci_gate.rs"
+    - "scripts/live-suite.sh"
+  tags:
+    - evals
+    - ci
+    - regression
+
+equations:
+  gate_verdict:
+    formula: "gate(r, m) = (suite_pass_rate(r) ≥ m), suite_pass_rate(r) = Σ passes / Σ trials"
+    domain: "r: a report with |cases| ≥ 1 and |seeds| ≥ 1, m ∈ [0, 1]"
+    codomain: "gate ∈ {true, false}"
+    invariants:
+      - "an empty case list or an empty seed list is refused before any verdict"
+      - "MIN_RATE is 1.0: every case passes every seed"
+    preconditions:
+      - "|cases| ≥ 1 ∧ |seeds| ≥ 1"
+    postconditions:
+      - "gate(r, m) is false when any case fails any seed and m = 1"
+  gate_can_fail:
+    formula: "contract_holds(s) = |rows| = expected ∧ ∀ row: gate(row) ∧ ¬gate(regressed)"
+    domain: "s: a summary; expected = 3 offline (apr, ollama, llamacpp), 1 live (the configured runtime)"
+    codomain: "contract_holds ∈ {true, false}"
+    invariants:
+      - "the worse model is measured with the same cases, seeds and temperature"
+      - "dropped(before, after) lists exactly the cases whose pass rate fell"
+    preconditions:
+      - "seeds are the fixed SEEDS list at temperature 0"
+    postconditions:
+      - "contract_holds(s) implies the gate refuses the worse model"
+
+proof_obligations:
+  - type: invariant
+    property: "A gate needs trials"
+    formal: "|seeds| = 0 ∨ |cases| = 0 ⇒ run = Err"
+    applies_to: gate_verdict
+  - type: invariant
+    property: "A passing gate on a worse model is a broken gate"
+    formal: "contract_holds(s) ⇒ ¬gate(s.regressed)"
+    applies_to: gate_can_fail
+
+falsification_tests:
+  - id: FALSIFY-E6-001
+    rule: "A failing case on one runtime"
+    prediction: "One case below full pass rate on one runtime makes contract_holds false"
+    test: "ci_gate::tests::the_gate_refuses_one_failing_case_on_one_runtime"
+    if_fails: "the gate no longer judges each runtime"
+  - id: FALSIFY-E6-002
+    rule: "A missing runtime"
+    prediction: "Dropping a runtime row makes contract_holds false"
+    test: "ci_gate::tests::contract_fails_when_a_runtime_is_missing"
+    if_fails: "the suite can skip a runtime and still pass"
+  - id: FALSIFY-E6-003
+    rule: "A gate that passes a worse model"
+    prediction: "Replacing the worse report with a good one makes contract_holds false"
+    test: "ci_gate::tests::contract_fails_when_the_gate_passes_a_worse_model"
+    if_fails: "the gate can no longer be shown to fail"
+  - id: FALSIFY-E6-004
+    rule: "The worse model goes red"
+    prediction: "The wrong-on-every-case model scores below 0.01 and fails the gate"
+    test: "ci_gate::tests::the_gate_goes_red_on_a_worse_model"
+    if_fails: "the regression fixture no longer regresses"
+  - id: FALSIFY-E6-005
+    rule: "Dropped cases"
+    prediction: "dropped lists only the cases whose pass rate fell"
+    test: "ci_gate::tests::dropped_lists_only_cases_that_fell"
+    if_fails: "the regression report names the wrong cases"
+  - id: FALSIFY-E6-006
+    rule: "Bin enforces the contract at run time"
+    prediction: "lesson6_ci_gate prints 'contract: a gate that can fail OK' and exits 0, offline on three runtimes and live on the configured one"
+    test: "tests/bins.rs::lesson6_prints_its_contract_and_runs_all_three_runtimes; tests/configured_runtime.rs live"
+    if_fails: "the bin no longer asserts the contract"
+  - id: FALSIFY-E6-007
+    rule: "Direct answers"
+    prediction: "Every live prompt carries the /no_think switch, so a thinking model answers inside the token budget"
+    test: "ci_gate::tests::direct_appends_the_no_think_switch_to_the_prompt"
+    if_fails: "the gate judges the token budget, not the model"
+
+qa_gate:
+  id: F-E6-001
+  name: "A gate that can fail"
+  description: "Lesson 2.6 demo contract"
+  checks:
+    - "gate_verdict"
+    - "gate_can_fail"
+  pass_criteria: "All falsification tests pass offline and against a live runtime; the bin prints its contract line"

@@ -128,3 +128,34 @@ fn lessons_2_and_3_live_mode_without_a_server_fail_loudly() {
         assert!(err.contains("demo run failed"));
     }
 }
+
+#[test]
+fn lesson6_prints_its_contract_and_runs_all_three_runtimes() {
+    let (ok, out, _) = run(env!("CARGO_BIN_EXE_lesson6_ci_gate"), &[]);
+    assert!(ok);
+    assert!(out.contains("contract: a gate that can fail OK"));
+    for rt in ["apr", "ollama", "llamacpp"] {
+        assert!(out.contains(rt), "{rt}");
+    }
+    assert!(out.contains("GATE FAIL"));
+}
+
+#[test]
+fn a_bad_runtime_name_stops_lesson6() {
+    let (ok, _, err) = run(
+        env!("CARGO_BIN_EXE_lesson6_ci_gate"),
+        &[("RLL_RUNTIME", "vllm")],
+    );
+    assert!(!ok);
+    assert!(err.contains("bad RLL_* environment"));
+}
+
+#[test]
+fn lesson6_live_mode_without_a_server_fails_loudly() {
+    let (ok, _, err) = run(
+        env!("CARGO_BIN_EXE_lesson6_ci_gate"),
+        &[("RLL_LIVE", "1"), ("RLL_BASE_URL", "http://127.0.0.1:1")],
+    );
+    assert!(!ok);
+    assert!(err.contains("demo run failed"));
+}
