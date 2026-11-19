@@ -1,6 +1,6 @@
 //! Lesson 1.2: one model, three runtimes.
 //!
-//! Provable contract: all three runtimes (apr, Ollama, llama.cpp) answer the same request, and every answer names the same city.
+//! Provable contract: all three runtimes (apr, Ollama, llama.cpp) answer the same request, and every answer contains "Paris".
 //!
 //! Offline by default (recorded fixtures); `RLL_LIVE=1` talks to real runtimes.
 

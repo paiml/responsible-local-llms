@@ -12,7 +12,7 @@ pub struct Summary {
 }
 
 impl Summary {
-    /// Every runtime answered, and every answer names the same city.
+    /// Every runtime answered, and every answer contains "Paris".
     pub fn contract_holds(&self) -> bool {
         self.answers.len() == Runtime::ALL.len()
             && self
@@ -74,6 +74,6 @@ mod tests {
     fn live_run_without_a_server_is_an_error() {
         // Nothing listens on the default ports in CI; the error must surface, not panic.
         let mut buf = Vec::new();
-        let _ = run(true, &mut buf);
+        assert!(run(true, &mut buf).is_err());
     }
 }

@@ -4,10 +4,14 @@
 use crate::chat::{Reply, Transport};
 use crate::error::Error;
 use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::time::Instant;
+use std::net::{TcpStream, ToSocketAddrs};
+use std::time::{Duration, Instant};
 
 pub struct HttpTransport;
+
+/// Connect, write and read each give up after this long, so a server that
+/// accepts and never replies cannot hang a demo.
+pub const TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Split `http://host:port/path` into (`host:port`, `/path`).
 pub fn parse_url(url: &str) -> Result<(&str, &str), Error> {
@@ -43,11 +47,15 @@ fn io(e: std::io::Error) -> Error {
     Error::Io(e.to_string())
 }
 
-impl Transport for HttpTransport {
-    fn post_json(&self, url: &str, body: &str) -> Result<Reply, Error> {
+fn post_json_within(url: &str, body: &str, timeout: Duration) -> Result<Reply, Error> {
+    {
         let (host, path) = parse_url(url)?;
         let start = Instant::now();
-        let mut s = TcpStream::connect(host).map_err(io)?;
+        let first = host.to_socket_addrs().map_err(io)?.next();
+        let addr = first.ok_or(Error::BadUrl(url.to_string()))?;
+        let mut s = TcpStream::connect_timeout(&addr, timeout).map_err(io)?;
+        s.set_read_timeout(Some(timeout)).map_err(io)?;
+        s.set_write_timeout(Some(timeout)).map_err(io)?;
         let req = format!(
             "POST {path} HTTP/1.0\r\nHost: {host}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
             body.len()
@@ -63,9 +71,36 @@ impl Transport for HttpTransport {
     }
 }
 
+impl Transport for HttpTransport {
+    fn post_json(&self, url: &str, body: &str) -> Result<Reply, Error> {
+        post_json_within(url, body, TIMEOUT)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_server_that_never_replies_times_out() {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/x", l.local_addr().unwrap());
+        let t = Instant::now();
+        let r = post_json_within(&url, "{}", Duration::from_millis(200));
+        assert!(matches!(r, Err(Error::Io(_))), "{r:?}");
+        assert!(t.elapsed() < Duration::from_secs(10));
+        drop(l);
+    }
+
+    #[test]
+    fn an_unresolvable_host_is_an_error() {
+        let r = post_json_within(
+            "http://nohost.invalid:1/x",
+            "{}",
+            Duration::from_millis(200),
+        );
+        assert!(r.is_err());
+    }
 
     #[test]
     fn parse_url_cases() {

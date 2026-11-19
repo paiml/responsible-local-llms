@@ -64,3 +64,13 @@ fn live_mode_without_a_server_fails_loudly() {
     assert!(!ok);
     assert!(err.contains("demo run failed"));
 }
+
+#[test]
+fn lesson2_live_mode_without_a_server_fails_loudly() {
+    let (ok, _, err) = run(
+        env!("CARGO_BIN_EXE_lesson2_three_runtimes"),
+        &[("RLL_LIVE", "1"), ("RLL_BASE_URL", "http://127.0.0.1:1")],
+    );
+    assert!(!ok);
+    assert!(err.contains("demo run failed"));
+}

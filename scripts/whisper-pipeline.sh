@@ -6,7 +6,7 @@
 #        RLL_BASE_URL (default http://127.0.0.1:8081), RLL_MODEL,
 #        RLL_DRY_RUN=1 prints the merged transcript and skips the model call.
 #
-# Provable contract: the merged transcript holds one line per input file, in order.
+# Provable contract: the merged transcript holds one non-empty line per input file, in order.
 set -euo pipefail
 
 if [ "$#" -lt 1 ]; then
@@ -28,8 +28,9 @@ for wav in "$@"; do
 done
 
 lines="$(wc -l < "$tmp/merged.txt")"
-if [ "$lines" -ne "$#" ]; then
-  echo "contract violated: $lines transcript lines for $# files" >&2
+nonempty="$(grep -c '[^[:space:]]' "$tmp/merged.txt" || true)"
+if [ "$lines" -ne "$#" ] || [ "$nonempty" -ne "$#" ]; then
+  echo "contract violated: $lines lines, $nonempty non-empty, for $# files" >&2
   exit 1
 fi
 
@@ -42,4 +43,4 @@ else
     | curl -fsS "$BASE_URL/v1/chat/completions" -H 'Content-Type: application/json' -d @- \
     | jq -r '.choices[0].message.content'
 fi
-echo "contract: merged transcript has one line per file OK"
+echo "contract: merged transcript has one non-empty line per file OK"

@@ -62,7 +62,7 @@ The same contracts are written down as YAML under `contracts/` and checked by
 
 | Contract | Demo |
 |----------|------|
-| `three-runtimes-agree-v1` | lesson 2: apr, Ollama and llama.cpp answer one request and name the same city |
+| `three-runtimes-agree-v1` | lesson 2: apr, Ollama and llama.cpp answer one request and each contain "Paris" |
 | `quantize-size-speed-v1` | lesson 3: size grows with bits per weight; measured tokens/s is finite and positive |
 | `local-economics-breakeven-v1` | lesson 4: costs are equal at break-even; with none, hosted is cheaper at every volume |
 | `demo-bin-v1` | every bin: contract docstring, `assert!` before the `contract: ... OK` line |

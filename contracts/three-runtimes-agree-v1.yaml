@@ -18,7 +18,7 @@ equations:
     codomain: "contract_holds ∈ {true, false}"
     invariants:
       - "every runtime in Runtime::ALL answered exactly once"
-      - "every answer names the same city"
+      - "every answer contains the word Paris"
     preconditions:
       - "Runtime::ALL.len() == 3"
     postconditions:
