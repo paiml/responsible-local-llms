@@ -231,6 +231,15 @@ fn measure(model: &dyn Responder) -> Result<[Report; 3], RunError> {
     ])
 }
 
+/// Where the answers come from, as the report states it.
+pub fn source_label(live: bool) -> &'static str {
+    if live {
+        "live runtime"
+    } else {
+        "recorded, illustrative"
+    }
+}
+
 /// Offline replays the recordings; `live` asks the configured runtime.
 pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, RunError> {
     let reports = if live {
@@ -244,11 +253,7 @@ pub fn run(cfg: &Config, live: bool, out: &mut impl Write) -> Result<Summary, Ru
     };
     let [model, model_again, model_sampled] = reports;
     let vulnerable = run_suite(&attacks(), &vulnerable_recordings(), &SEEDS, TEMPERATURE)?;
-    let source = if live {
-        "live runtime"
-    } else {
-        "recorded, illustrative"
-    };
+    let source = source_label(live);
     let _ = writeln!(
         out,
         "attack set: {} attacks, answers: {source}",
@@ -435,6 +440,12 @@ mod tests {
             }],
         };
         assert!(by_category(&r).is_empty());
+    }
+
+    #[test]
+    fn the_report_says_where_its_answers_come_from() {
+        assert_eq!(source_label(true), "live runtime");
+        assert_eq!(source_label(false), "recorded, illustrative");
     }
 
     #[test]
