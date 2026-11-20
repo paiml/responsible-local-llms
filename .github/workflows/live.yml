@@ -27,6 +27,9 @@ jobs:
       - name: check docker and apr (checks only)
         run: |
           docker info >/dev/null
+          # The pool runner service does not put the host cargo bin on PATH; apr lives there (checked, never installed).
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           command -v apr >/dev/null 2>&1 || { echo "apr is not on PATH on this runner; this job never installs it" >&2; exit 1; }
           apr --version
       - name: test model cache
