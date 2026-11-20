@@ -1,3 +1,5 @@
+![Responsible Generative AI and Local LLMs: Pragmatic AI Labs course card with the brain logo](assets/hero.png)
+
 # Responsible Generative AI and Local LLMs: demo code
 
 Companion code for the LinkedIn Learning course *Responsible Generative AI and Local LLMs*.
