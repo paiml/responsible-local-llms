@@ -2,7 +2,7 @@
 
 - **Git SHA (`main` in kfocus run log)**: `responsible-local-llms@99c368f` (`99c368ffb15b382d54768ed64bec3601a347e08c`)
 - **Notice**: **No command was guessed.** Every command below is marked `RAN`, `READ <file:line>`, or `NOT VERIFIED` (with `BLOCKED` where applicable), derived from `Makefile`, `README.md`, `evals/README.md`, `.github/workflows/live.yml`, `scripts/*.sh`, `Cargo.toml`, `crates/*/Cargo.toml`, and `evidence/demo-bins.jsonl`.
-- **kfocus run log (`responsible-local-llms@99c368f`)**: `scripts/record-ready.sh` printed 40 lines, 38 `PASS`, 2 `SKIP(live: ch1-lesson5_whisper-pipeline-live, ch1-live-runtimes)`, `EXIT=0`.
+- **kfocus run log (`responsible-local-llms@99c368f`)**: `scripts/record-ready.sh` printed 41 lines, 39 `PASS`, 2 `SKIP(live: ch1-lesson5_whisper-pipeline-live, ch1-live-runtimes)`, `EXIT=0`.
 
 ## Per-Chapter Recording Status
 
@@ -32,7 +32,7 @@ ch0: none exists; dropped from the sheet 2026-11-21
 5. Run ONE GATE workflow check:
    - `make one-gate` (`cargo run --quiet -p one-gate -- .`) — `RAN PASS` for `cargo run --quiet -p one-gate -- .` via `scripts/record-ready.sh` (`one-gate`) on `kfocus` at `99c368f` (`READ scripts/record-ready.sh:55`); wrapper target `READ Makefile:56-57`
 6. Run the per-chapter recording readiness script:
-   - `bash scripts/record-ready.sh` — `RAN` on `kfocus` (`responsible-local-llms@99c368f`): printed 40 lines, 38 `PASS`, 2 `SKIP(live: ch1-lesson5_whisper-pipeline-live, ch1-live-runtimes)`, `EXIT=0` (`READ scripts/record-ready.sh:1-122`)
+   - `bash scripts/record-ready.sh` — `RAN` on `kfocus` (`responsible-local-llms@99c368f`): printed 41 lines, 39 `PASS`, 2 `SKIP(live: ch1-lesson5_whisper-pipeline-live, ch1-live-runtimes)`, `EXIT=0` (`READ scripts/record-ready.sh:1-122`)
 
 ---
 
