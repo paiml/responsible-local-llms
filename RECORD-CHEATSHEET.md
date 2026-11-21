@@ -10,7 +10,7 @@
 |---|---|---|---|
 | `ch0` | no | No `ch0` directory exists on `main` (`READ Cargo.toml:3`, `READ scripts/record-ready.sh:105`) | No `ch0` directory exists on `main` |
 | `ch1` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch1-sovereign-tests`, `ch1-lesson2_three_runtimes`, `ch1-lesson3_quantize`, `ch1-lesson3_quality`, `ch1-lesson4_economics`, `ch1-lesson5_whisper-pipeline-offline`, `ch1-live-suite-partial-guard`) | None (offline fixtures) |
-| `ch1` (live) | no | `NOT VERIFIED` — `SKIP(live: ch1-lesson5_whisper-pipeline-live, ch1-live-runtimes)` in `scripts/record-ready.sh` on `kfocus` (`99c368f`, `EXIT=0`) | `BLOCKED`: Chapter 1 live lesson 1.2 needs `apr` on the `gx10` runner (`infra#5187` open); live Whisper/runtimes also require local GGUF, `whisper-cli`, and Docker |
+| `ch1` (live) | no | `RAN` via `live.yml` run 44897400144 on `gx10`: success (check docker and apr PASS, test model cache PASS, "live suite (apr, llama.cpp, Ollama, lesson 1.2 on all three)" PASS; `scripts/live-suite.sh:100-101` also runs `lesson3_quantize` live via `ch1-sovereign --test configured_runtime`). `scripts/whisper-pipeline.sh` (`ch1-lesson5_whisper-pipeline-live`) stays `NOT VERIFIED` (`SKIP(live: ch1-lesson5_whisper-pipeline-live)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`) | `scripts/whisper-pipeline.sh` (`ch1-lesson5_whisper-pipeline-live`) stays `NOT VERIFIED` (not covered by `live.yml` run 44897400144; requires `whisper-cli`, `WHISPER_MODEL`, `.wav` inputs, and a live runtime). `apr` is now mounted on all `gx10` pools (three-runtime and lesson 1.2 blocker resolved) |
 | `ch2` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch2-evals-tests` + 6 lesson bins) | None (offline) |
 | `ch3` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch3-safety-tests`, `ch3-guard-tests`, `ch3-redteam-tests` + 5 lesson bins) | None (offline) |
 | `ch4` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch4-agents-tests` + 5 lesson bins) | None (offline) |
@@ -25,9 +25,9 @@
 2. Run Rust & shell lints (`cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `shellcheck scripts/*.sh`):
    - `make lint` — `NOT VERIFIED` (`READ Makefile:17-29`, `READ README.md:28`)
 3. Run line coverage gate (100% required):
-   - `make coverage` — `NOT VERIFIED` (`READ Makefile:14-15`, `READ README.md:27`)
+   - `make coverage` — `RAN` on kfocus 2026-11-21 at 99c368f: EXIT=0 (lines 100%) (`READ Makefile:14-15`, `READ README.md:27`)
 4. Run provable contracts & ontology gates:
-   - `make pv` — `NOT VERIFIED` (`READ Makefile:34-43`, `READ README.md:29`; `scripts/check-evals-table.sh` and `scripts/demo-bins-jsonl.sh --check` are `READ scripts/record-ready.sh:56-57`)
+   - `make pv` — `RAN` on kfocus 2026-11-21 at 99c368f: EXIT=0 (sigma+shapes Pass) (`READ Makefile:34-43`, `READ README.md:29`; `scripts/check-evals-table.sh` and `scripts/demo-bins-jsonl.sh --check` are `READ scripts/record-ready.sh:56-57`)
 5. Run ONE GATE workflow check:
    - `make one-gate` (`cargo run --quiet -p one-gate -- .`) — `RAN PASS` for `cargo run --quiet -p one-gate -- .` via `scripts/record-ready.sh` (`one-gate`) on `kfocus` at `99c368f` (`READ scripts/record-ready.sh:55`); wrapper target `READ Makefile:56-57`
 6. Run the per-chapter recording readiness script:
@@ -74,17 +74,17 @@
 ### Live Recording Commands (Requires Local Model GGUF + Runtimes / Docker / `apr`)
 
 - Start `apr` runtime on port 8081:
-  - `GGUF=$HOME/models/qwen3-0.6b-q4_k_m.gguf scripts/serve-apr.sh` — `NOT VERIFIED` / `BLOCKED` (Chapter 1 live lesson 1.2 needs `apr` on the `gx10` runner, `infra#5187` open; `SKIP(live: ch1-live-runtimes)` in `scripts/record-ready.sh`), `READ README.md:39`, `READ scripts/serve-apr.sh:1-7`
+  - `GGUF=$HOME/models/qwen3-0.6b-q4_k_m.gguf scripts/serve-apr.sh` — `RAN` via `live.yml` run 44897400144 on `gx10`: success (`apr` is now mounted on all `gx10` pools; `scripts/live-suite.sh:87` invokes `scripts/serve-apr.sh` on `RLL_APR_PORT=18081` with cached `.cache/models/Qwen3-0.6B-Q4_K_M.gguf`), `READ README.md:39`, `READ scripts/serve-apr.sh:1-7`, `READ scripts/live-suite.sh:85-90`
 - Start `ollama` runtime on port 11434:
-  - `GGUF=$HOME/models/qwen3-0.6b-q4_k_m.gguf scripts/serve-ollama.sh` — `NOT VERIFIED` (`SKIP(live: ch1-live-runtimes)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ README.md:40`, `READ scripts/serve-ollama.sh:1-16`
+  - `GGUF=$HOME/models/qwen3-0.6b-q4_k_m.gguf scripts/serve-ollama.sh` — `RAN` via `live.yml` run 44897400144 on `gx10`: success (Ollama runtime covered by live suite via pinned container `ollama/ollama:0.40.13` in `scripts/live-suite.sh:79-84`; standalone host script `scripts/serve-ollama.sh` is not directly invoked by `live-suite.sh`), `READ README.md:40`, `READ scripts/serve-ollama.sh:1-16`, `READ scripts/live-suite.sh:79-84`
 - Start `llama.cpp` runtime on port 8080:
-  - `GGUF=$HOME/models/qwen3-0.6b-q4_k_m.gguf scripts/serve-llamacpp.sh` — `NOT VERIFIED` (`SKIP(live: ch1-live-runtimes)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ README.md:41`, `READ scripts/serve-llamacpp.sh:1-7`
+  - `GGUF=$HOME/models/qwen3-0.6b-q4_k_m.gguf scripts/serve-llamacpp.sh` — `RAN` via `live.yml` run 44897400144 on `gx10`: success (`llama.cpp` runtime covered by live suite via pinned container `ghcr.io/ggml-org/llama.cpp:server-b12110` in `scripts/live-suite.sh:74-78`; standalone host script `scripts/serve-llamacpp.sh` is not directly invoked by `live-suite.sh`), `READ README.md:41`, `READ scripts/serve-llamacpp.sh:1-7`, `READ scripts/live-suite.sh:74-78`
 - Run Lesson 1.3 live against Ollama:
-  - `RLL_LIVE=1 RLL_RUNTIME=ollama cargo run -p ch1-sovereign --bin lesson3_quantize` — `NOT VERIFIED` (`SKIP(live: ch1-live-runtimes)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ README.md:43`
+  - `RLL_LIVE=1 RLL_RUNTIME=ollama cargo run -p ch1-sovereign --bin lesson3_quantize` — `RAN` via `live.yml` run 44897400144 on `gx10`: success (`scripts/live-suite.sh:100-101` runs `ch1-sovereign --test configured_runtime`, which runs `lesson3_quantize` live with `RLL_LIVE=1 RLL_RUNTIME=$rt RLL_QUANT=q4_k_m` across `apr`, `llamacpp`, and `ollama`), `READ README.md:43`, `READ scripts/live-suite.sh:100-101`, `READ crates/ch1-sovereign/tests/configured_runtime.rs:18-22`
 - Run Lesson 1.5 Whisper.cpp pipeline live (requires `whisper-cli`, `WHISPER_MODEL`, `.wav` inputs, and live runtime):
-  - `scripts/whisper-pipeline.sh a.wav [b.wav ...]` — `NOT VERIFIED` (`SKIP(live: ch1-lesson5_whisper-pipeline-live)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ scripts/whisper-pipeline.sh:4`, `READ scripts/record-ready.sh:66`
+  - `scripts/whisper-pipeline.sh a.wav [b.wav ...]` — `NOT VERIFIED` (not covered by `live.yml` run 44897400144; `SKIP(live: ch1-lesson5_whisper-pipeline-live)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ scripts/whisper-pipeline.sh:4`, `READ scripts/record-ready.sh:66`
 - Run full three-runtime live suite (Lesson 1.2; docker + `apr` on PATH + model fetch):
-  - `make live RUNTIMES="apr llamacpp ollama"` — `NOT VERIFIED` / `BLOCKED` (Chapter 1 live lesson 1.2 needs `apr` on the `gx10` runner, `infra#5187` open; `SKIP(live: ch1-live-runtimes)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ .github/workflows/live.yml:17-38`, `READ Makefile:47-48`, `READ scripts/record-ready.sh:68`
+  - `make live RUNTIMES="apr llamacpp ollama"` — `RAN` via `live.yml` run 44897400144 on `gx10`: success (2026-11-21 attempt 4; check docker and apr PASS, test model cache PASS, "live suite (apr, llama.cpp, Ollama, lesson 1.2 on all three)" PASS; `apr` is now mounted on all `gx10` pools), `READ .github/workflows/live.yml:17-38`, `READ Makefile:47-48`, `READ scripts/record-ready.sh:68`
 
 ---
 
