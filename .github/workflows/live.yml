@@ -17,12 +17,10 @@ jobs:
   # One job, all three runtimes up at once: lesson 1.2 asks apr, Ollama and llama.cpp in one
   # run, so a job with fewer than three cannot run it. The suite refuses a partial run (red).
   # llama.cpp and Ollama run from pinned images; `apr` must already be on the runner's PATH.
-  # Pinned to the host-native gx10 runner (user noah, apr in ~/.cargo/bin, docker on the host): the
-  # gx10-poolN seats are containers without apr (issue #70).
   # This job only checks; it never installs anything.
   live:
     name: live
-    runs-on: [self-hosted, Linux, ARM64, gx10, blackwell]
+    runs-on: [self-hosted, Linux, ARM64, gx10, docker]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
