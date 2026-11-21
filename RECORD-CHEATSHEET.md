@@ -2,19 +2,20 @@
 
 - **Git SHA (`main` in kfocus run log)**: `responsible-local-llms@99c368f` (`99c368ffb15b382d54768ed64bec3601a347e08c`)
 - **Notice**: **No command was guessed.** Every command below is marked `RAN`, `READ <file:line>`, or `NOT VERIFIED` (with `BLOCKED` where applicable), derived from `Makefile`, `README.md`, `evals/README.md`, `.github/workflows/live.yml`, `scripts/*.sh`, `Cargo.toml`, `crates/*/Cargo.toml`, and `evidence/demo-bins.jsonl`.
-- **kfocus run log (`responsible-local-llms@99c368f`)**: `scripts/record-ready.sh` printed 40 lines, 38 `PASS`, 2 `SKIP(live: ch1-lesson5_whisper-pipeline-live, ch1-live-runtimes)`, `EXIT=0`. No `ch0` directory exists on `main`.
+- **kfocus run log (`responsible-local-llms@99c368f`)**: `scripts/record-ready.sh` printed 40 lines, 38 `PASS`, 2 `SKIP(live: ch1-lesson5_whisper-pipeline-live, ch1-live-runtimes)`, `EXIT=0`.
 
 ## Per-Chapter Recording Status
 
 | chapter | recordable yes/no | proof | blocker |
 |---|---|---|---|
-| `ch0` | no | No `ch0` directory exists on `main` (`READ Cargo.toml:3`, `READ scripts/record-ready.sh:105`) | No `ch0` directory exists on `main` |
 | `ch1` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch1-sovereign-tests`, `ch1-lesson2_three_runtimes`, `ch1-lesson3_quantize`, `ch1-lesson3_quality`, `ch1-lesson4_economics`, `ch1-lesson5_whisper-pipeline-offline`, `ch1-live-suite-partial-guard`) | None (offline fixtures) |
 | `ch1` (live) | no | `RAN` via `live.yml` run 44897400144 on `gx10`: success (check docker and apr PASS, test model cache PASS, "live suite (apr, llama.cpp, Ollama, lesson 1.2 on all three)" PASS; `scripts/live-suite.sh:100-101` also runs `lesson3_quantize` live via `ch1-sovereign --test configured_runtime`). `scripts/whisper-pipeline.sh` (`ch1-lesson5_whisper-pipeline-live`) stays `NOT VERIFIED` (`SKIP(live: ch1-lesson5_whisper-pipeline-live)` in `scripts/record-ready.sh` on `kfocus` at `99c368f`) | `scripts/whisper-pipeline.sh` (`ch1-lesson5_whisper-pipeline-live`) stays `NOT VERIFIED` (not covered by `live.yml` run 44897400144; requires `whisper-cli`, `WHISPER_MODEL`, `.wav` inputs, and a live runtime). `apr` is now mounted on all `gx10` pools (three-runtime and lesson 1.2 blocker resolved) |
 | `ch2` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch2-evals-tests` + 6 lesson bins) | None (offline) |
 | `ch3` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch3-safety-tests`, `ch3-guard-tests`, `ch3-redteam-tests` + 5 lesson bins) | None (offline) |
 | `ch4` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch4-agents-tests` + 5 lesson bins) | None (offline) |
 | `ch5` (offline) | yes | `RAN PASS` via `scripts/record-ready.sh` on `kfocus` (`responsible-local-llms@99c368f`: `ch5-governance-tests` + 4 lesson bins) | None (offline) |
+
+ch0: none exists; dropped from the sheet 2026-11-21
 
 ---
 
@@ -43,12 +44,6 @@
   - `cargo test -p rll-evals` — `RAN PASS` (`rll-evals-tests` via `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ Cargo.toml:3`, `READ crates/rll-evals/Cargo.toml:2`, `READ scripts/record-ready.sh:53`
 - `one-gate` unit tests:
   - `cargo test -p one-gate` — `RAN PASS` (`one-gate-tests` via `scripts/record-ready.sh` on `kfocus` at `99c368f`), `READ Cargo.toml:3`, `READ crates/one-gate/Cargo.toml:2`, `READ scripts/record-ready.sh:54`
-
----
-
-## Chapter 0
-
-- No `ch0` directory exists on `main` (`READ Cargo.toml:3`, `READ scripts/record-ready.sh:105`).
 
 ---
 
