@@ -36,10 +36,14 @@ pub fn run_at<F: Fn(&str) -> Option<String>>(
     let mut answers = Vec::new();
     for rt in Runtime::ALL {
         let client = client_for(rt, Some(&rt.base_url_from(&lookup)), live);
-        let c = client.chat(&ChatRequest::direct("qwen3-0.6b", PROMPT))?;
+        // One warm-up request first (issue #58): the first request pays model load and prompt
+        // processing, so timing it would report latency, not speed. Only the second is measured.
+        let req = ChatRequest::direct("qwen3-0.6b", PROMPT);
+        client.chat(&req)?;
+        let c = client.chat(&req)?;
         let _ = writeln!(
             out,
-            "{:<9} {:>6.1} tok/s  {}",
+            "{:<9} {:>6.1} tok/s after one warm-up  {}",
             rt.name(),
             c.tokens_per_second(),
             c.content
@@ -62,6 +66,39 @@ mod tests {
         for rt in Runtime::ALL {
             assert!(text.contains(rt.name()));
         }
+    }
+
+    #[test]
+    fn each_runtime_gets_a_warm_up_then_a_measured_request() {
+        // Issue #58: the first request is a warm-up and is not the one timed. A live run against
+        // a local server that counts requests sees two per runtime.
+        use std::io::{Read, Write as _};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let mut seen = 0;
+            for stream in listener.incoming().take(6) {
+                let mut s = stream.unwrap();
+                let mut buf = [0u8; 4096];
+                let _ = s.read(&mut buf).unwrap();
+                let body = r#"{"choices":[{"message":{"content":"Paris"}}],"usage":{"completion_tokens":1}}"#;
+                write!(
+                    s,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+                seen += 1;
+            }
+            seen
+        });
+        let mut buf = Vec::new();
+        let s = run_at(true, |_| Some(url.clone()), &mut buf).unwrap();
+        assert!(s.contract_holds());
+        assert_eq!(server.join().unwrap(), 6);
+        assert!(String::from_utf8(buf)
+            .unwrap()
+            .contains("after one warm-up"));
     }
 
     #[test]
