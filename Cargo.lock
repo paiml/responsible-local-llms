@@ -183,6 +183,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rll-hero"
+version = "0.1.0"
+dependencies = [
+ "ch1-sovereign",
+ "ch2-evals",
+ "ch3-redteam",
+ "rll-client",
+]
+
+[[package]]
 name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"

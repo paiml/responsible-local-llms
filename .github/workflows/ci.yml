@@ -60,5 +60,7 @@ jobs:
         run: make test
       - name: coverage
         run: make coverage
+      - name: hero image (regenerate and compare)
+        run: make hero
       - name: provable contracts (pv)
         run: make pv

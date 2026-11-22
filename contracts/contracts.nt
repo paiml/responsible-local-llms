@@ -299,6 +299,18 @@
 <https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/target> "one-gate"^^<http://www.w3.org/2001/XMLSchema#string> .
 <https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/versionSha256> "478b6372e7885a5cd4624fb31bcf79dbf70ca49ff6d2a58fed1cc4cae12c5d4d"^^<http://www.w3.org/2001/XMLSchema#string> .
 <https://ont.paiml.dev/v1alpha1/binary/one-gate/one-gate> <https://ont.paiml.dev/v1alpha1/bin/versionString> "one-gate 0.1.0 (b093eb187)"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/ns/prov#Entity> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://ont.paiml.dev/v1alpha1/Binary> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://ont.paiml.dev/v1alpha1/bin/target/rll-hero/rll-hero> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/gitSha> "7fa555d7ad469f08c4749468817362fb9846821d"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/helpSha256> "92cb36f939cd4554bc3dd96a69776ca4ccc627e43a7d6ffc1d8c3804002cadfa"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/name> "rll-hero"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/package> "rll-hero"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/sha256> "609e3b507fb308095f723c999d769dd6fab6894acd9eb5d56731e2fdad1a4938"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/srcPath> "crates/rll-hero/src/main.rs"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/target> "rll-hero"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/versionSha256> "aff3eb6dfe1355a8c7af910e2d2d8f4d411c846af3ef212d3d6fb7d98f41b469"^^<http://www.w3.org/2001/XMLSchema#string> .
+<https://ont.paiml.dev/v1alpha1/binary/rll-hero/rll-hero> <https://ont.paiml.dev/v1alpha1/bin/versionString> "rll-hero 0.1.0 (7fa555d7a)"^^<http://www.w3.org/2001/XMLSchema#string> .
 <https://ont.paiml.dev/v1alpha1/contract/agency-limits-v1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/ns/prov#Entity> .
 <https://ont.paiml.dev/v1alpha1/contract/agency-limits-v1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://ont.paiml.dev/v1alpha1/Contract> .
 <https://ont.paiml.dev/v1alpha1/contract/agency-limits-v1> <https://ont.paiml.dev/v1alpha1/file> "contracts/agency-limits-v1.yaml"^^<http://www.w3.org/2001/XMLSchema#string> .

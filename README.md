@@ -2,6 +2,8 @@
 
 # Responsible Generative AI and Local LLMs: demo code
 
+![Responsible Generative AI and Local LLMs: model size by quantization, local against hosted cost, Elo ranking and red-team results, all drawn from this repo's own offline demos](docs/hero.png)
+
 Companion code for the LinkedIn Learning course *Responsible Generative AI and Local LLMs*.
 One Rust workspace, one test suite, and three local runtimes serving the same model:
 [apr](https://github.com/paiml/aprender), [Ollama](https://ollama.com) and [llama.cpp](https://github.com/ggml-org/llama.cpp).
@@ -14,6 +16,7 @@ One Rust workspace, one test suite, and three local runtimes serving the same mo
 | `crates/ch1-sovereign` | Chapter 1 demos (lessons 2 to 4), each ending in an `assert!` and a `contract: ... OK` line. |
 | `crates/ch5-governance` | Chapter 5 demos (videos 5.1 to 5.4): licence checker, EU AI Act documentation generator, sensitivity router, release checklist. Offline, on recorded illustrative fixtures. |
 | `crates/ch4-agents` | Chapter 4 demos (videos 4.1 to 4.5): typed tool agent, local MCP server over loopback, agency limits, human approval with an audit log, tool-abuse evals. Offline, the model is a RECORDED, illustrative answer set; live legs check invariants only. |
+| `crates/rll-hero` | The README hero: a pure-Rust, deterministic PNG drawn from the offline demo outputs (quantization sizes, local vs hosted cost, Elo ranking, red-team results). `docs/hero.png`, with its sha256 in `evidence/hero.jsonl`. |
 | `crates/ch3-guard` | Chapter 3 demos 3.3 and 3.4: PII and secret redaction (`lesson33_pii_redaction`) and input/output guardrails (`lesson34_guardrails`). Pure text, no runtime; run with `cargo run -p ch3-guard --bin lesson33_pii_redaction`. |
 | `scripts/` | `serve-apr.sh`, `serve-ollama.sh`, `serve-llamacpp.sh`, and the whisper.cpp pipeline for lesson 5. |
 | `evals/` | Test sets as `*.jsonl` (filled in from chapter 2). `pii.jsonl` and `guardrails.jsonl` (chapter 3) hold hand-written synthetic strings, each labelled `"source":"illustrative"`: examples of the shapes, not measurements of any model. |
@@ -27,6 +30,7 @@ make test            # unit tests, demo bins, shell test
 make coverage        # fails under 100% line coverage
 make lint            # rustfmt, clippy, shellcheck
 make pv              # provable contracts and the pv ontology
+make hero            # the README hero: regenerated and compared, RED if missing or stale (`make hero-write` redraws it)
 make live            # the same demo tests against real local runtimes (needs docker)
 cargo run -p ch1-sovereign --bin lesson2_three_runtimes
 ```

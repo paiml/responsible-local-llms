@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SUFFIXES:
 .DELETE_ON_ERROR:
 
-.PHONY: test coverage lint lint-rust lint-shell pv live gate one-gate
+.PHONY: test coverage lint lint-rust lint-shell pv hero hero-write live gate one-gate
 
 # Offline: recorded fixtures only.
 test:
@@ -47,7 +47,7 @@ pv:
 live:
 	scripts/live-suite.sh $(RUNTIMES)
 
-gate: one-gate lint test coverage pv
+gate: one-gate lint test coverage pv hero
 
 # ONE GATE (operator ruling 2026-11-19): every job that runs on push to main is a required pull
 # request check. crates/one-gate parses each workflow as YAML and decides by a fail-closed allow-list
@@ -55,3 +55,12 @@ gate: one-gate lint test coverage pv
 # tests (cargo test, coverage) hold the evasions. pmat comply has no hook for this today.
 one-gate:
 	cargo run --quiet -p one-gate -- .
+
+# The README hero (ADS-DEMO-001 R-9): rll-hero redraws docs/hero.png from the repo's own offline demos;
+# `hero` goes RED when the image is missing, stale or altered, its evidence/hero.jsonl row is stale, or
+# the README does not open with it. After a change to any demo that feeds it: `make hero-write`.
+hero:
+	cargo run --quiet -p rll-hero -- check
+
+hero-write:
+	cargo run --quiet -p rll-hero -- write
