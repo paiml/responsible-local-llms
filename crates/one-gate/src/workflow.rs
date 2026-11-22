@@ -260,8 +260,8 @@ pub fn plain_name(n: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || " _./(),-".contains(c))
 }
 
-/// The check names of a job: `name` (or the id), matrix expanded.
-fn render_names(id: &str, m: &Mapping) -> Result<Vec<String>, String> {
+/// A job id must be a plain id: letters, digits, `_` and `-`.
+fn check_job_id(id: &str) -> Result<(), String> {
     if id.is_empty()
         || !id
             .chars()
@@ -271,11 +271,62 @@ fn render_names(id: &str, m: &Mapping) -> Result<Vec<String>, String> {
             "job id {id:?} is not a plain id (letters, digits, _ and -)"
         ));
     }
-    let custom = match m.get("name") {
-        None => None,
-        Some(Value::String(s)) => Some(s.as_str()),
-        Some(_) => return Err(format!("job '{id}' has a name that is not a string")),
-    };
+    Ok(())
+}
+
+/// The job's custom `name`, if any; a non-string name is an error.
+fn custom_name<'a>(id: &str, m: &'a Mapping) -> Result<Option<&'a str>, String> {
+    match m.get("name") {
+        None => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.as_str())),
+        Some(_) => Err(format!("job '{id}' has a name that is not a string")),
+    }
+}
+
+/// A custom name over a matrix must reference every matrix key, else RED.
+fn check_custom_covers(
+    id: &str,
+    t: &str,
+    c: &[(String, String)],
+    sub: &Regex,
+) -> Result<(), String> {
+    // GitHub renders a matrix job whose name uses no matrix value as `name (v1, v2)`, and
+    // its rule for a partly referenced matrix is unmeasured: so a custom name over a matrix
+    // must reference every matrix key, else RED.
+    let used: Vec<&str> = sub
+        .captures_iter(t)
+        .map(|m| m.get(1).map_or("", |g| g.as_str()))
+        .collect();
+    if let Some((k, _)) = c.iter().find(|(k, _)| !used.contains(&k.as_str())) {
+        return Err(format!(
+            "job '{id}' has a custom name over a matrix but does not reference matrix key '{k}', so GitHub's rendered check name cannot be computed as a plain literal"
+        ));
+    }
+    Ok(())
+}
+
+/// The rendered name of one matrix combination.
+fn render_one(id: &str, custom: Option<&str>, c: &[(String, String)], sub: &Regex) -> String {
+    match custom {
+        Some(t) => sub
+            .replace_all(t, |caps: &regex::Captures| {
+                c.iter()
+                    .find(|(k, _)| k == &caps[1])
+                    .map_or_else(|| caps[0].to_owned(), |(_, v)| v.clone())
+            })
+            .into_owned(),
+        None if c.is_empty() => id.to_owned(),
+        None => {
+            let vals: Vec<&str> = c.iter().map(|(_, v)| v.as_str()).collect();
+            format!("{id} ({})", vals.join(", "))
+        }
+    }
+}
+
+/// The check names of a job: `name` (or the id), matrix expanded.
+fn render_names(id: &str, m: &Mapping) -> Result<Vec<String>, String> {
+    check_job_id(id)?;
+    let custom = custom_name(id, m)?;
     let cs = match m.get("strategy") {
         None => vec![Vec::new()],
         Some(s) => combos(s).map_err(|e| format!("job '{id}': {e}"))?,
@@ -284,33 +335,9 @@ fn render_names(id: &str, m: &Mapping) -> Result<Vec<String>, String> {
     let mut out = Vec::new();
     for c in cs {
         if let (Some(t), false) = (custom, c.is_empty()) {
-            // GitHub renders a matrix job whose name uses no matrix value as `name (v1, v2)`, and
-            // its rule for a partly referenced matrix is unmeasured: so a custom name over a matrix
-            // must reference every matrix key, else RED.
-            let used: Vec<&str> = sub
-                .captures_iter(t)
-                .map(|m| m.get(1).map_or("", |g| g.as_str()))
-                .collect();
-            if let Some((k, _)) = c.iter().find(|(k, _)| !used.contains(&k.as_str())) {
-                return Err(format!(
-                    "job '{id}' has a custom name over a matrix but does not reference matrix key '{k}', so GitHub's rendered check name cannot be computed as a plain literal"
-                ));
-            }
+            check_custom_covers(id, t, &c, &sub)?;
         }
-        let name = match custom {
-            Some(t) => sub
-                .replace_all(t, |caps: &regex::Captures| {
-                    c.iter()
-                        .find(|(k, _)| k == &caps[1])
-                        .map_or_else(|| caps[0].to_owned(), |(_, v)| v.clone())
-                })
-                .into_owned(),
-            None if c.is_empty() => id.to_owned(),
-            None => {
-                let vals: Vec<&str> = c.iter().map(|(_, v)| v.as_str()).collect();
-                format!("{id} ({})", vals.join(", "))
-            }
-        };
+        let name = render_one(id, custom, &c, &sub);
         if !plain_name(&name) {
             return Err(format!(
                 "job '{id}' has a rendered check name {name:?} that is not a plain literal (non-empty, no edge or doubled space, only letters, digits, space and _ . / ( ) , -)"
