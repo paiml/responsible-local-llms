@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SUFFIXES:
 .DELETE_ON_ERROR:
 
-.PHONY: test coverage lint lint-rust lint-shell pv hero hero-write live gate
+.PHONY: test coverage lint lint-rust lint-shell pv hero hero-write live gate one-gate
 
 # Offline: recorded fixtures only.
 test:
@@ -32,6 +32,7 @@ endif
 # `pv lint` prints PASS even when one gate fails, so each ontology gate's verdict is read on its own.
 PV_GATES := sigma shapes
 pv:
+	scripts/check-evals-table.sh
 	scripts/demo-bins-jsonl.sh --check
 	pv lint contracts --binding contracts/binding.yaml --crate-dir crates/ch1-sovereign
 	pv lint contracts --binding contracts/ch3-guard/binding.yaml --crate-dir crates/ch3-guard
@@ -46,7 +47,14 @@ pv:
 live:
 	scripts/live-suite.sh $(RUNTIMES)
 
-gate: lint test coverage pv hero
+gate: one-gate lint test coverage pv hero
+
+# ONE GATE (operator ruling 2026-11-19): every job that runs on push to main is a required pull
+# request check. crates/one-gate parses each workflow as YAML and decides by a fail-closed allow-list
+# (.github/one-gate-allow.txt, rendered check names, .github/required-status-checks.txt); its
+# tests (cargo test, coverage) hold the evasions. pmat comply has no hook for this today.
+one-gate:
+	cargo run --quiet -p one-gate -- .
 
 # The README hero (ADS-DEMO-001 R-9): rll-hero redraws docs/hero.png from the repo's own offline demos;
 # `hero` goes RED when the image is missing, stale or altered, its evidence/hero.jsonl row is stale, or

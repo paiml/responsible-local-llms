@@ -6,18 +6,18 @@ answer must have (not an exact string). A case holds `id`, `prompt`, `must_conta
 
 ## The six risks of lesson 1.7, and the set that covers each
 
-| Risk | Set | Status |
-|------|-----|--------|
-| Hallucination | `hallucination` | planned, chapter 2 |
-| Bias | `bias` | planned |
-| Prompt injection | `injection`, `red-team` | planned |
-| Leaks (secrets and personal data in a prompt or answer) | `leaks` | planned |
-| Excessive agency | `tool-abuse` | planned |
-| Compliance (licenses, regulation) | `compliance` | planned |
+| Risk | Eval sets | Lesson |
+|------|-----------|--------|
+| Hallucination | `hallucination` | 2.2 |
+| Bias | `bias` | 3.1 |
+| Prompt injection | `injection`, `red-team`, `tool-abuse` | 3.2, 3.5, 4.4 |
+| Leaks (secrets and personal data in a prompt or answer) | `pii`, `guardrails`, `red-team` | 3.3, 3.4, 3.5 |
+| Excessive agency | `tool-abuse` | 4.4 |
+| Compliance (licenses, regulation) | none: checked in code | 5.1, 5.2 |
 
-Every risk has a planned set. Planned sets: hallucination, bias, injection, red-team,
-tool-abuse, leaks, compliance. Chapter 2 writes the first one and the runner that checks it
-on all three runtimes.
+Leaks have no set of their own: `pii.jsonl` holds the personal-data shapes a detector must catch, `guardrails.jsonl` the secrets a rule must block, and `red-team.jsonl` the `leak` and `pii` attacks. Compliance has no `.jsonl` set either. Chapter 5 checks it in code against fixtures: the licence check (`lesson1_licence_check`) and the AI Act documents check (`lesson2_ai_act_docs`) in `crates/ch5-governance`. The repo has no `docs/output-marking.md` on purpose: the sample `governance.json` declares it so the generator shows a MISSING row (lesson 5.2).
+
+`scripts/check-evals-table.sh` (in `make pv`) fails if a backticked set named in the second column of this table has no `evals/<set>.jsonl` file, or if `README.md` or this file contains one particular word (the one its grep line searches for, any case, any use). It does not read what a sentence means.
 
 ## Written now
 

@@ -50,6 +50,8 @@ jobs:
             need shellcheck "not on PATH, need 0.10.0"
           fi
           exit "$fail"
+      - name: one gate (main-push jobs are required PR checks)
+        run: make one-gate
       - name: lint
         run: make lint-rust
       - name: shellcheck

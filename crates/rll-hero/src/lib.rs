@@ -43,10 +43,12 @@ pub fn write(root: &Path) -> std::io::Result<String> {
     Ok(sha256::hex(&png))
 }
 
-/// The README opens with the hero: the first line after the title is the image.
+/// The README opens with the hero: the first line after the `# ` title is the image
+/// (a course card above the title is allowed).
 pub fn opens_with_hero(readme: &str) -> bool {
     readme
         .lines()
+        .skip_while(|l| !l.starts_with("# "))
         .skip(1)
         .find(|l| !l.trim().is_empty())
         .is_some_and(|l| l.starts_with("![") && l.ends_with(OPENER_END))
@@ -85,6 +87,13 @@ mod tests {
         assert!(opens_with_hero("# T\n\n![x](docs/hero.png)\n\ntext"));
         assert!(!opens_with_hero("# T\n\ntext\n\n![x](docs/hero.png)"));
         assert!(!opens_with_hero("# T\n"));
+        assert!(opens_with_hero(
+            "![card](a.png)\n\n# T\n\n![x](docs/hero.png)\n"
+        ));
+        assert!(!opens_with_hero(
+            "![card](a.png)\n\n# T\n\ntext\n\n![x](docs/hero.png)"
+        ));
+        assert!(!opens_with_hero("![x](docs/hero.png)\n\ntext"));
     }
 
     #[test]

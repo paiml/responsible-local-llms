@@ -1,0 +1,5 @@
+# ONE GATE (operator ruling 2026-11-19): the required status checks for pull requests to main.
+# Every job that runs on push to main must be listed here, and every name here must be a job
+# that runs on pull_request. crates/one-gate enforces both (pmat CB-2100 reads this same file name). The branch ruleset itself
+# is a repo setting: change it and this file in the same PR.
+gate

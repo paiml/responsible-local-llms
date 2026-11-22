@@ -1,3 +1,5 @@
+![Responsible Generative AI and Local LLMs: Pragmatic AI Labs course card with the brain logo](assets/hero.png)
+
 # Responsible Generative AI and Local LLMs: demo code
 
 ![Responsible Generative AI and Local LLMs: model size by quantization, local against hosted cost, Elo ranking and red-team results, all drawn from this repo's own offline demos](docs/hero.png)
@@ -17,7 +19,6 @@ One Rust workspace, one test suite, and three local runtimes serving the same mo
 | `crates/rll-hero` | The README hero: a pure-Rust, deterministic PNG drawn from the offline demo outputs (quantization sizes, local vs hosted cost, Elo ranking, red-team results). `docs/hero.png`, with its sha256 in `evidence/hero.jsonl`. |
 | `crates/ch3-guard` | Chapter 3 demos 3.3 and 3.4: PII and secret redaction (`lesson33_pii_redaction`) and input/output guardrails (`lesson34_guardrails`). Pure text, no runtime; run with `cargo run -p ch3-guard --bin lesson33_pii_redaction`. |
 | `scripts/` | `serve-apr.sh`, `serve-ollama.sh`, `serve-llamacpp.sh`, and the whisper.cpp pipeline for lesson 5. |
-| `evals/` | Test sets as `*.jsonl`: a planned set for each of the six risks of lesson 1.7, and `quantization-quality` for lesson 1.3 (see `evals/README.md`). |
 | `evals/` | Test sets as `*.jsonl` (filled in from chapter 2). `pii.jsonl` and `guardrails.jsonl` (chapter 3) hold hand-written synthetic strings, each labelled `"source":"illustrative"`: examples of the shapes, not measurements of any model. |
 
 ## Run it offline

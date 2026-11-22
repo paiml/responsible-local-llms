@@ -36,3 +36,71 @@ jobs:
           key: rll-model-qwen3-0.6b-q4_k_m-ac2d97712095a558
       - name: live suite (apr, llama.cpp, Ollama, lesson 1.2 on all three)
         run: make live RUNTIMES="apr llamacpp ollama"
+
+  whisper:
+    name: whisper
+    runs-on: [self-hosted, Linux, ARM64, gx10, docker]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: check whisper-cli and ffmpeg (checks only)
+        run: |
+          command -v whisper-cli >/dev/null 2>&1 || { echo "whisper-cli is not on PATH on this runner; this job never installs it" >&2; exit 1; }
+          command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg is not on PATH on this runner; this job never installs it" >&2; exit 1; }
+          whisper-cli --version 2>&1 || whisper-cli -h 2>&1 | head -n 5 || true
+          ffmpeg -version
+          if [ -z "${WHISPER_MODEL:-}" ]; then
+            echo "WHISPER_MODEL is empty; searching for ggml-large-v3-turbo*.bin (sha256 prefix 1fc70f77)..."
+            candidates=()
+            matches=()
+            while IFS= read -r candidate; do
+              [ -f "$candidate" ] && [ -r "$candidate" ] || continue
+              candidate="$(readlink -f "$candidate")"
+              case " ${seen_real:-} " in *" $candidate "*) continue ;; esac
+              seen_real="${seen_real:-} $candidate"
+              hash16="$(sha256sum "$candidate" | awk '{print substr($1, 1, 16)}')"
+              entry="$hash16  $candidate"
+              candidates+=("$entry")
+              echo "candidate: $entry"
+              case "$hash16" in
+                1fc70f77*) matches+=("$candidate") ;;
+              esac
+            done < <({ find /opt /usr/local /usr/share /srv /models /mnt /var/lib "$HOME" "$GITHUB_WORKSPACE/.cache" -maxdepth 6 -xdev \( -type f -o -type l \) -name 'ggml-large-v3-turbo*.bin' 2>/dev/null || true; } | sort -u)
+            if [ "${#matches[@]}" -eq 1 ]; then
+              path="${matches[0]}"
+              echo "WHISPER_MODEL=$path" >> "$GITHUB_ENV"
+              echo "Selected WHISPER_MODEL=$path"
+            else
+              echo "Expected exactly 1 candidate matching sha256 prefix 1fc70f77, found ${#matches[@]}" >&2
+              if [ "${#candidates[@]}" -eq 0 ]; then
+                echo "Candidates: none found" >&2
+              else
+                echo "Candidates:" >&2
+                printf '  %s\n' "${candidates[@]}" >&2
+              fi
+              echo "Environment:" >&2
+              env | grep -i -E 'whisper|ggml|model' >&2 || true
+              exit 1
+            fi
+          elif [ ! -f "$WHISPER_MODEL" ]; then
+            echo "WHISPER_MODEL must be set to an existing ggml model file on this runner (got: '${WHISPER_MODEL:-}')" >&2
+            exit 1
+          fi
+      - name: lesson 1.5 whisper pipeline live
+        run: |
+          out="$(RLL_DRY_RUN=1 scripts/whisper-pipeline.sh tests/fixtures/whisper/hello.wav)"
+          contract="contract: merged transcript has one non-empty line per file OK"
+          last="$(printf '%s\n' "$out" | tail -n 1)"
+          if [ "$last" != "$contract" ]; then
+            echo "expected contract line from whisper-pipeline.sh, got: $last" >&2
+            exit 1
+          fi
+          transcript="$(printf '%s\n' "$out" | sed '$d')"
+          lines="$(printf '%s\n' "$transcript" | wc -l)"
+          nonempty="$(printf '%s\n' "$transcript" | grep -c '[^[:space:]]' || true)"
+          if [ -z "$transcript" ] || [ "$lines" -ne 1 ] || [ "$nonempty" -ne 1 ]; then
+            echo "expected 1 non-empty merged transcript line, got $lines lines ($nonempty non-empty)" >&2
+            exit 1
+          fi
+          printf '%s\n' "$transcript"
+          echo "contract: merged transcript has one non-empty line per file OK"
