@@ -55,6 +55,9 @@ jobs:
             matches=()
             while IFS= read -r candidate; do
               [ -f "$candidate" ] && [ -r "$candidate" ] || continue
+              candidate="$(readlink -f "$candidate")"
+              case " ${seen_real:-} " in *" $candidate "*) continue ;; esac
+              seen_real="${seen_real:-} $candidate"
               hash16="$(sha256sum "$candidate" | awk '{print substr($1, 1, 16)}')"
               entry="$hash16  $candidate"
               candidates+=("$entry")
