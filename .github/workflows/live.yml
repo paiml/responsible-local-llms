@@ -49,7 +49,40 @@ jobs:
           command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg is not on PATH on this runner; this job never installs it" >&2; exit 1; }
           whisper-cli --version 2>&1 || whisper-cli -h 2>&1 | head -n 5 || true
           ffmpeg -version
-          if [ -z "${WHISPER_MODEL:-}" ] || [ ! -f "$WHISPER_MODEL" ]; then
+          if [ -z "${WHISPER_MODEL:-}" ]; then
+            echo "WHISPER_MODEL is empty; searching for ggml-large-v3-turbo*.bin (sha256 prefix 1fc70f77)..."
+            candidates=()
+            matches=()
+            while IFS= read -r candidate; do
+              [ -f "$candidate" ] && [ -r "$candidate" ] || continue
+              candidate="$(readlink -f "$candidate")"
+              case " ${seen_real:-} " in *" $candidate "*) continue ;; esac
+              seen_real="${seen_real:-} $candidate"
+              hash16="$(sha256sum "$candidate" | awk '{print substr($1, 1, 16)}')"
+              entry="$hash16  $candidate"
+              candidates+=("$entry")
+              echo "candidate: $entry"
+              case "$hash16" in
+                1fc70f77*) matches+=("$candidate") ;;
+              esac
+            done < <({ find /opt /usr/local /usr/share /srv /models /mnt /var/lib "$HOME" "$GITHUB_WORKSPACE/.cache" -maxdepth 6 -xdev \( -type f -o -type l \) -name 'ggml-large-v3-turbo*.bin' 2>/dev/null || true; } | sort -u)
+            if [ "${#matches[@]}" -eq 1 ]; then
+              path="${matches[0]}"
+              echo "WHISPER_MODEL=$path" >> "$GITHUB_ENV"
+              echo "Selected WHISPER_MODEL=$path"
+            else
+              echo "Expected exactly 1 candidate matching sha256 prefix 1fc70f77, found ${#matches[@]}" >&2
+              if [ "${#candidates[@]}" -eq 0 ]; then
+                echo "Candidates: none found" >&2
+              else
+                echo "Candidates:" >&2
+                printf '  %s\n' "${candidates[@]}" >&2
+              fi
+              echo "Environment:" >&2
+              env | grep -i -E 'whisper|ggml|model' >&2 || true
+              exit 1
+            fi
+          elif [ ! -f "$WHISPER_MODEL" ]; then
             echo "WHISPER_MODEL must be set to an existing ggml model file on this runner (got: '${WHISPER_MODEL:-}')" >&2
             exit 1
           fi
