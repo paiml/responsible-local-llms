@@ -1,0 +1,27 @@
+# li-c1-rllm -- Responsible AI and Local LLMs. Course config for rmedia assembly.
+# Mirrors catalogue courses/li-c1-rllm/course.toml (catalogue#1885); the outline is outline.jsonl here.
+schema_version = 1
+course_id      = "li-c1-rllm"
+course_name    = "Responsible AI and Local LLMs"
+instructor     = "Noah Gift"
+level          = "Intermediate"
+demo_repo      = "https://github.com/paiml/responsible-local-llms"
+lessons        = 35
+chapters       = 6
+pieces         = 137
+headshot       = "none"
+
+# Sinks. Each sink is its own production (rmedia GH-1431): own title, skin and render.
+[sinks.edx]
+run_key = "course-v1:AI+rllm1x+3T2026"
+state   = "unpublished"
+
+[sinks.linkedin]
+drive_folder = "Linkedin-Learning/Responsible AI and Local LLMs"
+
+# Where binaries live. They are never committed here.
+[media]
+raw_wav_dir  = "staging: lib-rll/raw/li-c1-rllm (137 final pieces + narration-takes); NAS copy not found under RecordedCourses"
+audio_sha256 = "audio.sha256"
+plates       = "missing"
+srt          = "missing"
