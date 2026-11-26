@@ -8,13 +8,35 @@ cd "$(dirname "$0")/.." || exit 1
 dir=course/li-c1-rllm
 scripts/course-manifest.sh --check >/dev/null || { echo "FAIL: clean tree rejected"; exit 1; }
 
-# plant NAME WANT EDIT: copy the gate's inputs to a temp tree, run EDIT there, and require the gate
-# to exit non-zero with WANT (a message from the targeted check) on stderr.
+# Each defect is a function (not a quoted string), so the edit is real shell code that the
+# lint sees. Functions run inside the temp copy, so $dir resolves there.
+defect_stale_manifest() {
+  sed -i '1s/"rendered":false/"rendered":true/' "$dir/manifest.jsonl"
+}
+defect_outline_count() {
+  sed -i '$d' "$dir/outline.jsonl"
+}
+defect_piece_checksum_count() {
+  sed -i '1,2d' "$dir/audio.sha256"
+}
+defect_lesson_without_pieces() {
+  rm -f course/li-c1-rllm/teleprompter/0.0-p*.teleprompter.md
+  sed -i '1,3d' "$dir/audio.sha256"
+}
+defect_checksum_lookup() {
+  sed -i 's/ 0\.0-p01\.wav$/ 0.0-p99.wav/' "$dir/audio.sha256"
+}
+defect_unknown_demo_bin() {
+  sed -i '1s/lesson2_three_runtimes/no_such_bin/' "$dir/lesson-demos.tsv"
+}
+
+# plant NAME WANT EDIT_FN: copy the gate's inputs to a temp tree, run the edit function there,
+# and require the gate to exit non-zero with WANT (a message from the targeted check) on stderr.
 plant() {
   local t err
   t=$(mktemp -d) || exit 1
   cp -r scripts course evidence "$t"/
-  (cd "$t" && eval "$3")
+  (cd "$t" && "$3")
   if err=$(cd "$t" && scripts/course-manifest.sh --check 2>&1 >/dev/null); then
     echo "FAIL: $1 accepted"; rm -rf "${t:?}"; exit 1
   fi
@@ -24,16 +46,10 @@ plant() {
   rm -rf "${t:?}"
 }
 
-plant "stale manifest" "is stale" \
-  'sed -i "1s/\"rendered\":false/\"rendered\":true/" $dir/manifest.jsonl'
-plant "outline count" "outline has 34 lessons, expected 35" \
-  'sed -i "\$d" $dir/outline.jsonl'
-plant "piece/checksum count" "teleprompter pieces but 135 audio checksums" \
-  'sed -i "1,2d" $dir/audio.sha256'
-plant "lesson without pieces" "no teleprompter pieces for lesson 0.0" \
-  'rm -f course/li-c1-rllm/teleprompter/0.0-p*.teleprompter.md; sed -i "1,3d" $dir/audio.sha256'
-plant "checksum lookup" "no audio checksum for 0.0-p01" \
-  'sed -i "s/ 0\.0-p01\.wav\$/ 0.0-p99.wav/" $dir/audio.sha256'
-plant "unknown demo bin" "demo bin no_such_bin not in" \
-  'sed -i "1s/lesson2_three_runtimes/no_such_bin/" $dir/lesson-demos.tsv'
+plant "stale manifest" "is stale" defect_stale_manifest
+plant "outline count" "outline has 34 lessons, expected 35" defect_outline_count
+plant "piece/checksum count" "teleprompter pieces but 135 audio checksums" defect_piece_checksum_count
+plant "lesson without pieces" "no teleprompter pieces for lesson 0.0" defect_lesson_without_pieces
+plant "checksum lookup" "no audio checksum for 0.0-p01" defect_checksum_lookup
+plant "unknown demo bin" "demo bin no_such_bin not in" defect_unknown_demo_bin
 echo "course-manifest falsifier: OK (6 planted defects, each refused by its own check)"
