@@ -27,6 +27,9 @@ jobs:
       - name: check docker and apr (checks only)
         run: |
           docker info >/dev/null
+          # apr is installed under $HOME/.cargo/bin, which the runner PATH omits. Add it; never install.
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           command -v apr >/dev/null 2>&1 || { echo "apr is not on PATH on this runner; this job never installs it" >&2; exit 1; }
           apr --version
       - name: test model cache
