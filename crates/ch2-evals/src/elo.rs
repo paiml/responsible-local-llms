@@ -135,13 +135,13 @@ fn replay_for(model: &str, all: &[serde_json::Value], cases: &[Case]) -> Result<
     Ok(replay)
 }
 
-/// Offline only: the fixture's answers play every pair. The same `matches_from` ranks live
-/// models when it is given real responders.
 /// The rating text lesson 2.5 prints (`1097.2`). The README hero uses it too.
 pub fn rating_label(r: f64) -> String {
     format!("{r:.1}")
 }
 
+/// Offline only: the fixture's answers play every pair. The same `matches_from` ranks live
+/// models when it is given real responders.
 pub fn run(out: &mut impl Write) -> Result<Summary, RunError> {
     let cases = parse_jsonl(SET).expect("evals/elo.jsonl is a valid eval set");
     let all = rows(FIXTURE).expect("the elo fixture is valid");
