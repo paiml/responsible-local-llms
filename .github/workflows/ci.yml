@@ -17,7 +17,7 @@ permissions:
 jobs:
   gate:
     name: gate
-    runs-on: { group: tier2, labels: [tier2] }
+    runs-on: { group: tier2, labels: [self-hosted, clean-room, X64, ffmpeg] }
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
