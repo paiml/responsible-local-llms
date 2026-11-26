@@ -30,8 +30,10 @@ plant "outline count" "outline has 34 lessons, expected 35" \
   'sed -i "\$d" $dir/outline.jsonl'
 plant "piece/checksum count" "teleprompter pieces but 135 audio checksums" \
   'sed -i "1,2d" $dir/audio.sha256'
+plant "lesson without pieces" "no teleprompter pieces for lesson 0.0" \
+  'rm -f course/li-c1-rllm/teleprompter/0.0-p*.teleprompter.md; sed -i "1,3d" $dir/audio.sha256'
 plant "checksum lookup" "no audio checksum for 0.0-p01" \
   'sed -i "s/ 0\.0-p01\.wav\$/ 0.0-p99.wav/" $dir/audio.sha256'
 plant "unknown demo bin" "demo bin no_such_bin not in" \
   'sed -i "1s/lesson2_three_runtimes/no_such_bin/" $dir/lesson-demos.tsv'
-echo "course-manifest falsifier: OK (5 planted defects, each refused by its own check)"
+echo "course-manifest falsifier: OK (6 planted defects, each refused by its own check)"
