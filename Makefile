@@ -9,6 +9,7 @@ test:
 	cargo test --workspace
 	scripts/test-whisper-pipeline.sh
 	scripts/test-live-suite-partial.sh
+	scripts/test-course-manifest.sh
 
 # 100% of demo and client lines, bins included (they run as subprocesses in tests/bins.rs).
 coverage:
@@ -34,6 +35,7 @@ PV_GATES := sigma shapes
 pv:
 	scripts/check-evals-table.sh
 	scripts/demo-bins-jsonl.sh --check
+	scripts/course-manifest.sh --check
 	pv lint contracts --binding contracts/binding.yaml --crate-dir crates/ch1-sovereign
 	pv lint contracts --binding contracts/ch3-guard/binding.yaml --crate-dir crates/ch3-guard
 	@for g in $(PV_GATES); do \
