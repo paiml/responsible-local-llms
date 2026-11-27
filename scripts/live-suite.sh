@@ -50,14 +50,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Start a container with the model copied in (no host bind mount), echo its bridge IP.
+# Start a container with the model copied in (no host bind mount). Sets CONTAINER_IP to its
+# bridge IP. Never call it inside $(...): a subshell's containers+= never reaches cleanup,
+# so the container leaks (40 rll-* containers and ~70 GB RSS on gx10, 2026-11-27).
 start_container() { # name image args...
   local name=$1 image=$2; shift 2
   docker create --name "$name" "$image" "$@" >/dev/null
   containers+=("$name")
   docker cp "$gguf" "$name:/tmp/model.gguf" >/dev/null
   docker start "$name" >/dev/null
-  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$name"
+  CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$name")
 }
 
 wait_up() { # url what
@@ -69,17 +71,17 @@ wait_up() { # url what
 }
 
 base_url() { # runtime -> sets BASE
-  local rt=$1 ip
+  local rt=$1
   case $rt in
     llamacpp)
       need docker "llama.cpp runs from $LLAMACPP_IMAGE"
-      ip=$(start_container "rll-llamacpp-$$" "$LLAMACPP_IMAGE" -m /tmp/model.gguf --host 0.0.0.0 --port 8080)
-      BASE=http://$ip:8080
+      start_container "rll-llamacpp-$$" "$LLAMACPP_IMAGE" -m /tmp/model.gguf --host 0.0.0.0 --port 8080
+      BASE=http://$CONTAINER_IP:8080
       wait_up "$BASE/health" "llama.cpp" ;;
     ollama)
       need docker "Ollama runs from $OLLAMA_IMAGE"
-      ip=$(start_container "rll-ollama-$$" "$OLLAMA_IMAGE")
-      BASE=http://$ip:11434
+      start_container "rll-ollama-$$" "$OLLAMA_IMAGE"
+      BASE=http://$CONTAINER_IP:11434
       wait_up "$BASE/api/tags" "ollama"
       docker exec "rll-ollama-$$" sh -c "printf 'FROM /tmp/model.gguf\n' > /tmp/Modelfile && ollama create $MODEL_NAME -f /tmp/Modelfile" >/dev/null ;;
     apr)
