@@ -105,6 +105,8 @@ for rt in "${runtimes[@]}"; do
     cargo test -q -p ch2-evals --test configured_runtime -- --nocapture --test-threads 1
   RLL_LIVE=1 RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
     cargo test -q -p ch4-agents --test configured_runtime -- --nocapture --test-threads 1
+  RLL_LIVE=1 RLL_RUNTIME=$rt RLL_BASE_URL=$BASE RLL_MODEL=$MODEL_NAME \
+    cargo test -q -p ch3-redteam --test configured_runtime -- --nocapture --test-threads 1
   echo "live-suite: $rt PASS"
 done
 # Lesson 1.2 asks all three runtimes in one run, so it needs all three up at once. The
